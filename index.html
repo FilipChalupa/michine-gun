@@ -14,9 +14,9 @@
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0f0c09; } }
   :root[data-theme="dark"]{ --bg:#0f0c09; }
   *{box-sizing:border-box}
-  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;overscroll-behavior:none;
     font-family:Anton,Impact,"Arial Black",sans-serif;color:var(--cream)}
-  canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+  canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
   #overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:18px;padding:16px;background:rgba(20,14,8,.55);backdrop-filter:blur(3px);text-align:center;z-index:2}
   #overlay.hidden{display:none}
@@ -43,10 +43,11 @@
 <canvas id="c"></canvas>
 <div id="overlay">
   <div class="sign"><h1>Mišine <span>gun</span></h1><p class="sub">VÍCE MYŠÍ. MÉNĚ NÁSILÍ.</p></div>
-  <p id="msg">Mrzouti táhnou na naši pozici. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý mrzout zasažený myší se rozveselí a odletí spokojený domů. Když se dostanou až k tobě, ubývá mír.</p>
+  <p id="msg">Bugy táhnou na produkci. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý bug zasažený myší se rozveselí, přestane kousat a odletí domů. Když se dostanou až k tobě, ubývá mír.</p>
   <div id="stats"></div>
   <button id="btn">ZAHÁJIT MÍROVOU MISI</button>
   <p class="hint">Myš / dotyk = míření a palba &middot; Mezerník = palba &middot; M = zvuk</p>
+  <p class="hint" id="rotate" hidden>📱 Na mobilu se hraje nejlíp na šířku.</p>
 </div>
 <button id="mute" title="Zvuk (M)">🔊 ZVUK</button>
 
@@ -74,8 +75,9 @@ function resize() {
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
   ctx.setTransform(DPR * SC, 0, 0, DPR * SC, 0, 0);
 }
-window.addEventListener('resize', resize);
-resize();
+function checkOrientation() { const r = document.getElementById('rotate'); if (r) r.hidden = !(window.innerHeight > window.innerWidth && window.innerWidth < 700); }
+window.addEventListener('resize', () => { resize(); checkOrientation(); });
+resize(); checkOrientation();
 
 // ---------- helpers ----------
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -139,6 +141,10 @@ try { S.best = parseInt(localStorage.getItem('misine-best') || '0', 10) || 0; } 
 const pointer = { x: 0, y: 0, down: false, space: false };
 const clouds = Array.from({ length: 7 }, (_, i) => ({ x: Math.random(), y: 0.05 + Math.random() * 0.3, s: rnd(0.7, 1.5), v: rnd(6, 14) }));
 
+const BUG_TAGS = ['typo', 'NPE', '404', 'off by 1', 'race condition', 'undefined', 'null', 'CSS', 'memory leak', 'merge conflict', 'flaky test', 'jen na produkci', 'u mě to jde', 'timezone', 'encoding', 'cache', 'infinite loop', 'deadlock', 'stack overflow', 'legacy'];
+const BIG_TAGS = ['CRITICAL', 'P0', 'SEGFAULT', 'DATA LOSS', 'PROD DOWN', 'SECURITY'];
+const FAST_TAGS = ['regrese', 'hotfix', 'flaky', 'heisenbug', 'race'];
+const pick = a => a[Math.floor(Math.random() * a.length)];
 const gun = () => ({ x: Math.max(W * 0.24, 200), y: H * 0.72 });
 const WAVE_LEN = 16;
 
@@ -164,6 +170,7 @@ function spawnGrump() {
   S.grumps.push({
     x: W + size + 10, baseY: rnd(H * 0.16, H * 0.62), y: 0, size, hp, maxhp: hp, speed, type,
     happy: false, t: Math.random() * 10, fade: 1, hug: [], wob: rnd(0.8, 1.4),
+    tag: pick(type === 'b' ? BIG_TAGS : type === 'f' ? FAST_TAGS : BUG_TAGS),
   });
 }
 
@@ -218,8 +225,8 @@ function update(dt) {
   if (S.waveT >= WAVE_LEN) {
     S.waveT = 0; S.wave++;
     floatText(W * 0.55, H * 0.35, 'VLNA ' + S.wave, '#f5c400', 60, 1.6);
-    if (S.wave === 2) floatText(W * 0.55, H * 0.35 + 50, 'Pozor, velcí mrzouti potřebují 3 myši!', '#f3e7cf', 20, 2.4);
-    if (S.wave === 3) floatText(W * 0.55, H * 0.35 + 50, 'Rychlí mrzouti! Miř před ně.', '#f3e7cf', 20, 2.4);
+    if (S.wave === 2) floatText(W * 0.55, H * 0.35 + 50, 'Pozor, kritické bugy potřebují 3 myši!', '#f3e7cf', 20, 2.4);
+    if (S.wave === 3) floatText(W * 0.55, H * 0.35 + 50, 'Rychlé regrese! Miř před ně.', '#f3e7cf', 20, 2.4);
     sfx.wave();
   }
   S.spawnT -= dt;
@@ -251,7 +258,7 @@ function update(dt) {
           floatText(gr.x, gr.y - gr.size - 10, '+' + pts + (S.combo >= 5 ? '  x' + mult.toFixed(1) : ''), '#f5c400', 22, 1);
           burstHearts(gr.x, gr.y, gr.type === 'b' ? 14 : 8); sfx.pop();
         } else {
-          floatText(gr.x, gr.y - gr.size - 10, 'hmpf', '#ddd', 16, 0.5);
+          floatText(gr.x, gr.y - gr.size - 10, 'ERR', '#ddd', 16, 0.5);
           tone('sine', 300, 380, 0.08, 0.04);
         }
         break;
@@ -295,8 +302,8 @@ function gameOver() {
   S.running = false; S.over = true; sfx.over();
   if (S.score > S.best) { S.best = S.score; try { localStorage.setItem('misine-best', String(S.best)); } catch (e) {} }
   const acc = S.shots ? Math.round(100 * S.hits / S.shots) : 0;
-  msgEl.textContent = 'Mrzouti prorazili linii a mír je v troskách. Ale spousta z nich odešla s úsměvem a myší v náručí. Zkusíš to znovu?';
-  statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; NEJLEPŠÍ <b>${S.best}</b><br>VLNA <b>${S.wave}</b> &nbsp;·&nbsp; ROZVESELENO <b>${S.hits}</b> &nbsp;·&nbsp; PŘESNOST <b>${acc}%</b>`;
+  msgEl.textContent = 'Bugy prorazily na produkci a mír je v troskách. Ale spousta z nich odešla s úsměvem a myší v náručí. Zkusíš to znovu?';
+  statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; NEJLEPŠÍ <b>${S.best}</b><br>VLNA <b>${S.wave}</b> &nbsp;·&nbsp; VYŘEŠENO <b>${S.hits}</b> &nbsp;·&nbsp; PŘESNOST <b>${acc}%</b>`;
   btn.textContent = 'ZKUSIT ZNOVU';
   overlay.classList.remove('hidden');
 }
@@ -322,44 +329,100 @@ function drawMouse(x, y, rot, s, scream) {
 
 function drawGrump(gr) {
   ctx.save(); ctx.translate(gr.x, gr.y); ctx.globalAlpha = Math.max(0, gr.fade);
-  const s = gr.size, happy = gr.happy;
-  if (gr.type === 'f' && !happy) {
+  const s = gr.size, happy = gr.happy, t = gr.t;
+  const shell = happy ? '#f4a6ba' : gr.type === 'b' ? '#b83b3b' : gr.type === 'f' ? '#6f8f4a' : '#4f8a3c';
+  const shellDark = happy ? '#c7607f' : gr.type === 'b' ? '#5e1b1b' : '#243d1a';
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+  if (!happy && gr.type === 'f') {
     ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
     for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(s + 6, i * 8); ctx.lineTo(s + 22 + Math.abs(i) * 6, i * 8); ctx.stroke(); }
   }
-  ctx.fillStyle = happy ? '#f4a6ba' : gr.type === 'b' ? '#5e6069' : gr.type === 'f' ? '#9a9ca6' : '#84868f';
-  ctx.strokeStyle = happy ? '#c7607f' : '#34353b'; ctx.lineWidth = 3;
-  ctx.beginPath();
-  for (let i = 0; i <= 10; i++) {
-    const a = i / 10 * TAU, r = s * (1 + 0.1 * Math.sin(gr.t * 4 + i * 2.3));
-    const px = Math.cos(a) * r, py = Math.sin(a) * r * 0.92;
-    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  // wings (fast bugs) - drawn behind the head, flapping
+  if (gr.type === 'f') {
+    const flap = Math.sin(t * 40) * 0.5;
+    ctx.fillStyle = 'rgba(210,235,255,.55)'; ctx.strokeStyle = 'rgba(120,150,170,.6)'; ctx.lineWidth = 1.5;
+    for (const sg of [-1, 1]) {
+      ctx.save(); ctx.translate(sg * s * 0.4, -s * 0.5); ctx.rotate(sg * (0.9 + flap));
+      ctx.beginPath(); ctx.ellipse(0, -s * 0.7, s * 0.35, s * 0.8, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
   }
+  // legs - three each side, wiggling
+  ctx.strokeStyle = shellDark; ctx.lineWidth = Math.max(2, s * 0.09);
+  for (const sg of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const a = (i - 1) * 0.55 + Math.sin(t * 12 + i * 2 + (sg > 0 ? 3 : 0)) * 0.25;
+    const bx = sg * s * 0.85, by = s * 0.15 + i * s * 0.22;
+    ctx.beginPath(); ctx.moveTo(bx, by);
+    ctx.lineTo(bx + sg * s * 0.45 * Math.cos(a), by + s * 0.2 - s * 0.35 * Math.sin(a));
+    ctx.lineTo(bx + sg * s * 0.55 * Math.cos(a) + sg * s * 0.1, by + s * 0.45 - s * 0.2 * Math.sin(a)); ctx.stroke();
+  }
+  // antennae
+  ctx.strokeStyle = shellDark; ctx.lineWidth = Math.max(2, s * 0.08);
+  for (const sg of [-1, 1]) {
+    const wig = Math.sin(t * 6 + sg) * s * 0.12;
+    ctx.beginPath(); ctx.moveTo(sg * s * 0.35, -s * 0.75);
+    ctx.quadraticCurveTo(sg * s * 0.75, -s * 1.25 + wig, sg * s * 0.95 + wig * 0.5, -s * 1.5); ctx.stroke();
+    ctx.fillStyle = shellDark; circle(sg * s * 0.95 + wig * 0.5, -s * 1.5, s * 0.09);
+  }
+  // head shell: dome with a flatter jaw, segmented
+  ctx.fillStyle = shell; ctx.strokeStyle = shellDark; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.95, s * 0.15);
+  ctx.bezierCurveTo(-s * 1.05, -s * 0.9, s * 1.05, -s * 0.9, s * 0.95, s * 0.15);
+  ctx.bezierCurveTo(s * 0.8, s * 0.95, -s * 0.8, s * 0.95, -s * 0.95, s * 0.15);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  const e = s * 0.32, ey = -s * 0.12;
+  // shell shine + centre seam
+  ctx.fillStyle = 'rgba(255,255,255,.22)'; ellipse(-s * 0.3, -s * 0.5, s * 0.3, s * 0.16, -0.4);
+  ctx.strokeStyle = shellDark; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, -s * 0.85); ctx.lineTo(0, -s * 0.25); ctx.stroke();
+  // compound eyes
+  const ex = s * 0.48, ey = -s * 0.15, er = s * 0.3;
+  for (const sg of [-1, 1]) {
+    ctx.fillStyle = happy ? '#6a2440' : '#1b1b1f'; ellipse(sg * ex, ey, er, er * 1.15, sg * 0.25);
+    if (!happy) {
+      ctx.fillStyle = happy ? '#ffd6e2' : '#ff5a5a';
+      for (let i = 0; i < 4; i++) circle(sg * ex + (i % 2) * s * 0.11 - s * 0.05, ey - s * 0.12 + Math.floor(i / 2) * s * 0.12, s * 0.045);
+      ctx.fillStyle = 'rgba(255,255,255,.6)'; circle(sg * ex - sg * s * 0.1, ey - s * 0.14, s * 0.06);
+    }
+  }
   if (!happy) {
-    ctx.fillStyle = '#fff'; circle(-e, ey, s * 0.2); circle(e, ey, s * 0.2);
-    ctx.fillStyle = '#1a1a1a'; circle(-e + 2, ey + 2, s * 0.09); circle(e - 2, ey + 2, s * 0.09);
-    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = Math.max(3, s * 0.12); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-e - s * 0.25, ey - s * 0.4); ctx.lineTo(-e + s * 0.18, ey - s * 0.2);
-    ctx.moveTo(e + s * 0.25, ey - s * 0.4); ctx.lineTo(e - s * 0.18, ey - s * 0.2); ctx.stroke();
-    ctx.lineWidth = Math.max(2.5, s * 0.09);
-    ctx.beginPath(); ctx.arc(0, s * 0.55, s * 0.3, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
-    if (gr.type === 'b') {
-      ctx.fillStyle = '#3f4530'; ctx.beginPath(); ctx.arc(0, -s * 0.45, s * 0.72, Math.PI, 0); ctx.fill();
-      ctx.fillRect(-s * 0.8, -s * 0.5, s * 1.6, s * 0.12);
-      ctx.fillStyle = '#e0d68a'; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(-s * 0.25 + i * s * 0.25, -s * 0.85, 3, 0, TAU); ctx.fill(); }
+    // angry brows across the eyes
+    ctx.strokeStyle = shellDark; ctx.lineWidth = Math.max(3, s * 0.13);
+    ctx.beginPath(); ctx.moveTo(-ex - s * 0.28, ey - s * 0.5); ctx.lineTo(-ex + s * 0.25, ey - s * 0.22);
+    ctx.moveTo(ex + s * 0.28, ey - s * 0.5); ctx.lineTo(ex - s * 0.25, ey - s * 0.22); ctx.stroke();
+    // open mandibles (snapping)
+    const snap = 0.25 + Math.abs(Math.sin(t * 9)) * 0.35;
+    ctx.strokeStyle = shellDark; ctx.lineWidth = Math.max(3, s * 0.12);
+    for (const sg of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(sg * s * 0.35, s * 0.55);
+      ctx.quadraticCurveTo(sg * s * (0.5 - snap * 0.3), s * 1.05, sg * s * (0.12 + snap * 0.3), s * 1.1); ctx.stroke();
     }
-    if (gr.maxhp > 1) {
-      ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(-s * 0.6, -s - 14, s * 1.2, 6);
-      ctx.fillStyle = '#ff8f8f'; ctx.fillRect(-s * 0.6, -s - 14, s * 1.2 * (gr.hp / gr.maxhp), 6);
-    }
+    // tiny teeth line
+    ctx.fillStyle = '#2b2b2b'; ellipse(0, s * 0.6, s * 0.22, s * 0.09);
   } else {
-    ctx.strokeStyle = '#7a2b45'; ctx.lineWidth = Math.max(3, s * 0.1); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.arc(-e, ey, s * 0.16, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
-    ctx.beginPath(); ctx.arc(e, ey, s * 0.16, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,90,120,.45)'; circle(-e - s * 0.25, ey + s * 0.3, s * 0.14); circle(e + s * 0.25, ey + s * 0.3, s * 0.14);
-    ctx.beginPath(); ctx.arc(0, s * 0.2, s * 0.35, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
+    // happy: ^ ^ eyes, closed mandibles curled into a smile, blush
+    ctx.strokeStyle = '#ffe3ea'; ctx.lineWidth = Math.max(3, s * 0.1);
+    for (const sg of [-1, 1]) { ctx.beginPath(); ctx.arc(sg * ex, ey + s * 0.05, s * 0.16, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+    ctx.fillStyle = 'rgba(255,90,120,.45)'; circle(-ex - s * 0.1, ey + s * 0.45, s * 0.13); circle(ex + s * 0.1, ey + s * 0.45, s * 0.13);
+    ctx.strokeStyle = shellDark; ctx.lineWidth = Math.max(3, s * 0.1);
+    ctx.beginPath(); ctx.arc(0, s * 0.45, s * 0.32, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
+  }
+  // critical bug: hard hat
+  if (gr.type === 'b' && !happy) {
+    ctx.fillStyle = '#e0b100'; ctx.beginPath(); ctx.arc(0, -s * 0.55, s * 0.72, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8a6d00'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#e0b100'; rrect(-s * 0.9, -s * 0.62, s * 1.8, s * 0.14, 3); ctx.fill(); ctx.stroke();
+    stencil('P0', 0, -s * 0.85, Math.max(9, s * 0.3), '#3a2d00', 'center');
+  }
+  // label chip
+  const lbl = gr.tag, fs = Math.max(10, Math.min(13, s * 0.36));
+  ctx.font = `${fs}px ${FONT}`; const lw = ctx.measureText(lbl).width + 12;
+  const ly = -s - (gr.type === 'b' ? s * 0.6 : s * 0.55) - 12;
+  ctx.fillStyle = happy ? 'rgba(255,200,215,.9)' : gr.type === 'b' ? 'rgba(200,40,40,.92)' : 'rgba(28,30,26,.85)';
+  rrect(-lw / 2, ly - 9, lw, 18, 4); ctx.fill();
+  stencil(lbl, 0, ly, fs, happy ? '#7a2b45' : '#f3e7cf', 'center');
+  if (!happy && gr.maxhp > 1) {
+    ctx.fillStyle = 'rgba(0,0,0,.4)'; rrect(-s * 0.6, ly + 12, s * 1.2, 5, 2); ctx.fill();
+    ctx.fillStyle = '#ff8f8f'; rrect(-s * 0.6, ly + 12, s * 1.2 * (gr.hp / gr.maxhp), 5, 2); ctx.fill();
   }
   for (const h of gr.hug) drawMouse(h.dx, h.dy, h.rot, 0.8, false);
   ctx.restore();
@@ -599,6 +662,8 @@ canvas.addEventListener('pointerdown', e => { pointer.x = e.clientX / SC; pointe
 canvas.addEventListener('pointermove', e => { pointer.x = e.clientX / SC; pointer.y = e.clientY / SC; });
 canvas.addEventListener('pointerup', () => { pointer.down = false; });
 canvas.addEventListener('pointercancel', () => { pointer.down = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 window.addEventListener('blur', () => { pointer.down = false; pointer.space = false; });
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') { pointer.space = true; e.preventDefault(); if (!S.running && !overlay.classList.contains('hidden')) btn.click(); }
