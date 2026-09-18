@@ -1,0 +1,17 @@
+{
+  "name": "Mišine gun",
+  "short_name": "Mišine gun",
+  "description": "Kočka, kulomet a myši místo nábojů. Rozvesel bugy dřív, než pošlapou mír.",
+  "lang": "cs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a1410",
+  "theme_color": "#5a3d22",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

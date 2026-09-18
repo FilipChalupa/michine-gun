@@ -2,27 +2,56 @@
 
 Více myší. Méně násilí.
 
-Webová hra v jednom souboru (`index.html`, canvas + vanilla JS, bez závislostí). Kočka v helmě obsluhuje kulomet, který místo nábojů střílí myši. Přilétající bugy (hlavy brouků se štítky jako „NPE“, „off by 1“ nebo „jen na produkci“) se po zásahu rozveselí a odletí domů. Když se dostanou až ke kulometu, ubývá mír.
+Webová hra (canvas + vanilla JS v ES modulech, bez závislostí a bez build kroku). Kočka v helmě obsluhuje kulomet, který místo nábojů střílí myši. Přilétající bugy (hlavy brouků se štítky jako „NPE“, „off by 1“ nebo „jen na produkci“) se po zásahu rozveselí a odletí domů. Když se dostanou až ke kulometu, ubývá mír.
 
 ## Spuštění
 
-Stačí otevřít `index.html` v prohlížeči, nebo:
+Kód používá ES moduly, takže je potřeba lokální server (přímé otevření `index.html` přes `file://` prohlížeč zablokuje):
 
 ```sh
 python3 -m http.server 8080
 # http://localhost:8080
 ```
 
+Hra je PWA: na mobilu jde přidat na plochu a běží na celou obrazovku, po první návštěvě funguje i offline (`sw.js`).
+
 ## Ovládání
 
 - Myš / dotyk: míření a palba (držet tlačítko nebo prst); na mobilu nejlépe na šířku
 - Mezerník: palba
+- P nebo Esc: pauza (hra se pozastaví i při přepnutí záložky)
 - M: vypnout / zapnout zvuk
 
 ## Pravidla
 
-- Běžný bug: 1 myš, při průniku -10 % míru
-- Kritický bug P0 (od 2. vlny, červený s přilbou): 3 myši, při průniku -20 % míru
-- Rychlá regrese (od 3. vlny, s křídly): 1 myš, ale rychlá, při průniku -7 % míru
-- Každý rozveselený bug vrací trochu míru a zvyšuje kombo (násobitel skóre); kombo se resetuje při průniku
-- Munice (myši) se průběžně doplňuje, nejlepší skóre se ukládá do localStorage
+- Hlaveň se při souvislé palbě přehřívá. Přehřátá hlaveň chvíli nestřílí, střílej v dávkách.
+- Každých pár sekund se do pásu nabije zlatá myš, která proletí všemi bugy a dává trojnásobné poškození.
+- Vlny mají pevný počet bugů. Po vyčištění vlny je 4 s přestávka, doplní se pás a hlaveň vychladne.
+- Každá pátá vlna je boss „PROD DOWN“: obří bug s vlastním ukazatelem zdraví a hláškami.
+- Každý rozveselený bug vrací trochu míru a zvyšuje kombo (násobitel skóre); kombo se resetuje při průniku.
+- Nejlepší skóre se ukládá do localStorage.
+
+### Bugy
+
+| Typ | Od vlny | Myší | Mír při průniku | Zvláštnost |
+| --- | --- | --- | --- | --- |
+| běžný bug | 1 | 1 | -10 % | |
+| kritický P0 (červený, přilba) | 2 | 3 | -20 % | |
+| regrese (křídla) | 3 | 1 | -7 % | rychlá |
+| duplicate (tyrkysový) | 4 | 1 | -8 % | po zásahu se rozdělí na dva malé |
+| cache (olivový, šipka) | 4 | 1 | -8 % | po rozveselení se za 2,5 s vrátí jako „stale cache“ |
+| heisenbug (modrý) | 5 | 1 | -9 % | mizí a objevuje se jinde, neviditelný nejde zasáhnout |
+| boss PROD DOWN | každá 5. | 15+ | -40 % | |
+
+## Struktura
+
+- `index.html`, `style.css` – kostra a styly
+- `src/main.js` – bootstrap, vstup, obrazovky (start, pauza, konec), PWA
+- `src/state.js` – sdílený stav, konstanty, typy bugů
+- `src/entities.js` – herní logika: vlny, spawn, střelba, kolize, částice
+- `src/render.js` – kreslení scény, kočky, kulometu, myší a bugů
+- `src/hud.js` – HUD a cedule s názvem
+- `src/audio.js` – syntetizované zvuky a ambient (WebAudio, bez souborů)
+- `manifest.webmanifest`, `sw.js`, `icons/` – PWA
+
+Respektuje `prefers-reduced-motion` (vypne otřesy obrazovky a zpomalení času při zásahu).
