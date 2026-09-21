@@ -30,7 +30,7 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 
 - Myš: míření kurzorem, palba držením tlačítka
 - Dotyk: drž prst kdekoli a táhni nahoru nebo dolů. Hlaveň se naklání podle pohybu prstu od místa, kam dopadl (celý rozsah je 40 % výšky displeje). Tečkovaná čára ukazuje dráhu myší. Na mobilu nejlépe na šířku.
-- Přebití: klávesa R, nebo ťuknutí na náboje (řádek MYŠI v panelu, pás nebo bedna s municí). Podržení na stejném místě normálně střílí.
+- Přebití: klávesa R, nebo ťuknutí na bednu s municí pod kulometem. Podržení na bedně normálně střílí.
 - Mezerník: palba
 - P nebo Esc: pauza (hra se pozastaví i při přepnutí záložky)
 - M: vypnout / zapnout zvuk

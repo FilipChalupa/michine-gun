@@ -143,7 +143,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 window.addEventListener('blur', () => { pointer.down = false; pointer.space = false; pause(); });
 
 // ---------- input ----------
-// A press that lands on the ammo (HUD row, belt or crate) may be a tap to reload, so it holds fire
+// A press that lands on the ammo crate may be a tap to reload, so it holds fire
 // for a moment; if it turns out to be a hold, it fires like any other press.
 let tap = null, tapTimer = 0;
 canvas.addEventListener('pointerdown', e => {

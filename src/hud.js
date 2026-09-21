@@ -78,10 +78,9 @@ export function drawHUD() {
   }
 }
 
-// Tap targets for a manual reload: the ammo row in the HUD, and the belt + ammo crate next to the gun.
+// Tap target for a manual reload: only the ammo crate under the gun (same rectangle render.js draws),
+// so presses anywhere else, including the belt on the left, aim and fire as usual.
 export function isAmmoTap(x, y) {
-  const L = 16 + view.safe.l, y0 = 92 + view.safe.t, ay = y0 + 104;
-  if (x >= L && x <= L + 250 && y >= ay - 12 && y <= ay + 24) return true;
   const g = gun();
-  return x >= g.x - 215 && x <= g.x + 125 && y >= g.y + 36 && y <= g.y + 125;
+  return x >= g.x - 60 && x <= g.x + 120 && y >= g.y + 34 && y <= g.y + 120;
 }
