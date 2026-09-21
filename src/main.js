@@ -4,6 +4,7 @@ import { audio, sfx, unlock, setMute, loadMute, setVolume, startAmbient, stopAmb
 import { update, hooks, reload, chooseUpgrade } from './entities.js';
 import { initRender, drawScene } from './render.js';
 import { drawHUD, drawTitleSign, isAmmoTap } from './hud.js';
+import { loadScores, qualifies, addScore, lastName } from './scores.js';
 
 const canvas = document.getElementById('c');
 const ctx = initRender(canvas);
@@ -62,24 +63,47 @@ async function keepAwake() {
 }
 function releaseWake() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
 
+// ---------- local leaderboard ----------
+const nameForm = document.getElementById('nameform'), nameInput = document.getElementById('name');
+const scoresEl = document.getElementById('scores');
+function renderScores(highlightId) {
+  const list = loadScores(), body = scoresEl.tBodies[0];
+  body.textContent = '';
+  list.forEach((r, i) => {
+    const tr = body.insertRow(); if (r.id === highlightId) tr.className = 'me';
+    [[i + 1 + '.', ''], [r.name, ''], [String(r.score), 'num'], ['vlna ' + r.wave, '']].forEach(([txt, cls]) => { const td = tr.insertCell(); td.textContent = txt; td.className = cls; });
+  });
+  scoresEl.hidden = !list.length;
+  if (list.length) meta.best = Math.max(meta.best, list[0].score);
+}
+nameForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const row = addScore(nameInput.value, S.score, S.wave);
+  nameForm.hidden = true; renderScores(row.id); btn.focus();
+});
+renderScores(); // the start screen shows the table right away
+
 // ---------- overlay / pause ----------
 function showOverlay(mode) {
-  overlayMode = mode; overlay.hidden = false;
+  overlayMode = mode; overlay.hidden = false; overlay.dataset.mode = mode;
   if (mode === 'start') {
     msgEl.textContent = START_MSG; statsEl.innerHTML = ''; btn.textContent = 'ZAHÁJIT MÍROVOU MISI';
   } else if (mode === 'over') {
     const acc = S.shots ? Math.round(100 * S.hits / S.shots) : 0;
     msgEl.textContent = 'Bugy prorazily na produkci a mír je v troskách. Ale spousta z nich odešla s úsměvem a myší v náručí. Zkusíš to znovu?';
-    statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; NEJLEPŠÍ <b>${meta.best}</b><br>VLNA <b>${S.wave}</b> &nbsp;·&nbsp; VYŘEŠENO <b>${S.hits}</b> &nbsp;·&nbsp; PŘESNOST <b>${acc}%</b>`;
+    statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; NEJLEPŠÍ <b>${meta.best}</b><br>VLNA <b>${S.wave}</b> &nbsp;·&nbsp; ROZVESELENO <b>${S.cheered}</b> &nbsp;·&nbsp; PŘESNOST <b>${acc}%</b>`;
     btn.textContent = 'ZKUSIT ZNOVU';
   } else {
     msgEl.textContent = 'Pauza. Bugy trpělivě čekají, myši si dávají sýr.';
     statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; VLNA <b>${S.wave}</b> &nbsp;·&nbsp; MÍR <b>${Math.round(S.peace)}%</b>`;
     btn.textContent = 'POKRAČOVAT';
   }
+  nameForm.hidden = !(mode === 'over' && qualifies(S.score));
+  if (!nameForm.hidden) nameInput.value = lastName();
+  if (mode === 'pause') scoresEl.hidden = true; else renderScores();
   hintEl.hidden = mode === 'pause'; document.getElementById('touchhint').hidden = mode === 'pause';
   pauseBtn.hidden = true;
-  btn.focus();
+  if (nameForm.hidden) btn.focus(); else nameInput.focus();
 }
 function pause() {
   if (!S.running || S.paused || S.phase === 'upgrade') return; // the upgrade screen already freezes the game
@@ -141,6 +165,7 @@ canvas.addEventListener('pointercancel', () => { pointer.down = false; tap = nul
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 window.addEventListener('keydown', e => {
+  if (e.target instanceof HTMLInputElement && e.target.type === 'text') return; // typing a name must not trigger game shortcuts
   if (e.code === 'Space') {
     e.preventDefault();
     if (!overlay.hidden) btn.click(); else if (upgradesEl.hidden) pointer.space = true;

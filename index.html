@@ -19,10 +19,16 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="overlay">
+<div id="overlay" data-mode="start">
   <div class="sign"><h1>Mišine <span>gun</span></h1><p class="sub">VÍCE MYŠÍ. MÉNĚ NÁSILÍ.</p></div>
   <p id="msg">Bugy táhnou na produkci. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý bug zasažený myší se rozveselí, přestane kousat a odletí domů. Když se dostanou až k tobě, ubývá mír. Střílej v dávkách, hlaveň se přehřívá a pás se nabije, až když úplně dojde.</p>
   <div id="stats"></div>
+  <form id="nameform" hidden autocomplete="off">
+    <label for="name">Jsi v top 5! Jméno:</label>
+    <input type="text" id="name" maxlength="12" placeholder="Anonym" enterkeyhint="done">
+    <button type="submit" id="savescore">ULOŽIT</button>
+  </form>
+  <table id="scores" hidden><caption>NEJLEPŠÍ MÍROTVORCI</caption><tbody></tbody></table>
   <button id="btn">ZAHÁJIT MÍROVOU MISI</button>
   <button id="install" hidden>⬇ NAINSTALOVAT HRU</button>
   <div id="volumes">
@@ -36,7 +42,7 @@
 </div>
 <div id="upgrades" hidden>
   <p id="upgradetitle">VLNA HOTOVÁ</p>
-  <p class="hint">Vyber jedno vylepšení (klávesy 1, 2, 3)</p>
+  <p class="hint">Vyber jedno vylepšení<span id="cardkeys"> (klávesy 1, 2, 3)</span></p>
   <div id="cards"></div>
 </div>
 <div id="toast" role="status" hidden><span id="toastmsg">Je k dispozici nová verze.</span><button id="toastbtn">OBNOVIT</button></div>

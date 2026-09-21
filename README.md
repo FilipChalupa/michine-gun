@@ -29,21 +29,23 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 ## Ovládání
 
 - Myš: míření kurzorem, palba držením tlačítka
-- Dotyk: drž prst kdekoli a posouvej ho nahoru a dolů. Náklon hlavně odpovídá výšce prstu od spodního okraje, vodorovná poloha nehraje roli. Tečkovaná čára ukazuje dráhu myší. Na mobilu nejlépe na šířku.
+- Dotyk: drž prst kdekoli a táhni nahoru nebo dolů. Hlaveň se naklání podle pohybu prstu od místa, kam dopadl (celý rozsah je 40 % výšky displeje). Tečkovaná čára ukazuje dráhu myší. Na mobilu nejlépe na šířku.
+- Přebití: klávesa R, nebo ťuknutí na náboje (řádek MYŠI v panelu, pás nebo bedna s municí). Podržení na stejném místě normálně střílí.
 - Mezerník: palba
 - P nebo Esc: pauza (hra se pozastaví i při přepnutí záložky)
 - M: vypnout / zapnout zvuk
-- H: vypnout / zapnout hudbu
+- H: vypnout / zapnout hudbu. Hlasitost hudby a efektů se nastavuje zvlášť posuvníky na úvodní obrazovce, v pauze a po konci hry.
 
 ## Pravidla
 
 - Hlaveň se při souvislé palbě přehřívá. Přehřátá hlaveň chvíli nestřílí, střílej v dávkách.
-- Pás má 40 myší a sám se nedoplňuje. Nabije se (1,8 s) až ve chvíli, kdy úplně dojde.
+- Pás má 40 myší a sám se nedoplňuje. Nabije se (1,8 s), když úplně dojde, nebo když ho přebiješ ručně. Ruční přebití zahodí zbytek pásu.
+- Šetřená hlaveň chladne rychleji než přehřátá, takže dávky se vyplácí víc než střelba do přehřátí.
 - Každých pár sekund se do pásu nabije zlatá myš, která proletí všemi bugy a dává trojnásobné poškození.
-- Vlny mají pevný počet bugů. Po vyčištění vlny je 4 s přestávka a hlaveň vychladne.
-- Každá pátá vlna je boss „PROD DOWN“: obří bug s vlastním ukazatelem zdraví a hláškami.
+- Vlny mají pevný počet bugů. Po vyčištění vlny si vybereš jedno ze tří vylepšení (delší pás, chladič, rychlé nabíjení, zlatý chov, kadence, dvojitá hlaveň, mírová jednání, code freeze, CI pipeline), pak je krátká přestávka.
+- Každá pátá vlna je boss. Střídají se PROD DOWN, LEGACY MONOLITH (sype ze sebe staré bugy jako jQuery a IE6) a MEMORY LEAK (roste a léčí se, když do něj nestřílíš). S každým kolem mají víc životů.
 - Každý rozveselený bug vrací trochu míru a zvyšuje kombo (násobitel skóre); kombo se resetuje při průniku.
-- Nejlepší skóre se ukládá do localStorage.
+- Pět nejlepších výsledků se jménem se ukládá do localStorage (jen v tomto prohlížeči).
 
 ### Bugy
 
@@ -55,7 +57,7 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 | duplicate (tyrkysový) | 4 | 1 | -8 % | po zásahu se rozdělí na dva malé |
 | cache (olivový, šipka) | 4 | 1 | -8 % | po rozveselení se za 2,5 s vrátí jako „stale cache“ |
 | heisenbug (modrý) | 5 | 1 | -9 % | mizí a objevuje se jinde, neviditelný nejde zasáhnout |
-| boss PROD DOWN | každá 5. | 15+ | -40 % | |
+| boss | každá 5. | 45 až 70, +25 za kolo | -40 % | tři druhy, viz výše |
 
 ## Struktura
 
@@ -65,7 +67,19 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 - `src/entities.js` – herní logika: vlny, spawn, střelba, kolize, částice
 - `src/render.js` – kreslení scény, kočky, kulometu, myší a bugů
 - `src/hud.js` – HUD a cedule s názvem
-- `src/audio.js` – syntetizované zvuky, ambient a hudba (WebAudio, bez souborů). Hudba je 16taktový pochod ze sekvenceru, tempo roste s vlnami a při bossovi přejde do moll.
+- `src/scores.js` – lokální tabulka top 5
+- `tools/balance.mjs` – simulace vyvážení
+- `src/audio.js` – syntetizované zvuky, ambient a hudba (WebAudio, bez souborů). Hudba má dvě skladby na šestnáctinové mřížce. Pochod graduje v pěti stupních podle vlny (přibývají nástroje, tempo, transpozice, od 7. vlny moll). Boss má vlastní skladbu v a moll s ostinátním basem a finále pod 35 % jeho životů. Při míru pod 30 % se přidá tlukot srdce.
 - `manifest.webmanifest`, `sw.js`, `icons/`, `screenshots/`, `fonts/` – PWA, ikony, screenshoty pro instalaci, lokální font
 
-Respektuje `prefers-reduced-motion` (vypne otřesy obrazovky a zpomalení času při zásahu).
+## Vyvážení
+
+`node tools/balance.mjs 30` odehraje hry třemi boty (začátečník, průměrný, zkušený) přímo nad herní logikou a vypíše, do které vlny se dostali. Parametry obtížnosti jsou v `BALANCE` v `src/state.js` a jdou zkoušet bez úprav kódu:
+
+```sh
+B='{"spawnPerWave":0.5,"armorEvery":7}' node tools/balance.mjs 24
+```
+
+Aktuální nastavení dává medián zhruba: začátečník vlna 9, průměrný 13, zkušený 14 až 17. Boti jsou hrubý model (šum v míření, váhání, výběr cíle), skutečné hraní může vyjít jinak.
+
+Respektuje `prefers-reduced-motion` (vypne otřesy obrazovky, zpomalení času při zásahu a vibrace). Na telefonech s podporou vibruje při průniku, přehřátí a u bossů.
