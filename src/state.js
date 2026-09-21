@@ -2,10 +2,12 @@
 export const TAU = Math.PI * 2;
 export const FONT = 'Anton, Impact, "Arial Black", sans-serif';
 export const BREAK_LEN = 4;
+export const RELOAD_LEN = 1.8;
 
 // World units: on narrow screens the whole scene is scaled by SC.
 export const view = { W: 0, H: 0, SC: 1, DPR: 1, safe: { l: 0, r: 0, t: 0, b: 0 } };
-export const pointer = { x: 0, y: 0, down: false, space: false };
+// touch: true while the last pointer was a finger (barrel tilt follows finger height instead of aiming at it)
+export const pointer = { x: 0, y: 0, down: false, space: false, touch: false };
 export const motion = { reduced: false };
 export const meta = { best: 0 };
 
@@ -31,7 +33,7 @@ export function newGame() {
     running: true, over: false, paused: false, time: 0,
     score: 0, peace: 100, combo: 0,
     wave: 0, phase: 'break', breakT: 0.01, quota: 0, spawned: 0, waveHits: 0, bossAlive: false, bossTalkT: 3,
-    ammo: 40, maxAmmo: 40, heat: 0, overheated: false, shots: 0, hits: 0,
+    ammo: 40, maxAmmo: 40, reloading: false, reloadT: 0, heat: 0, overheated: false, shots: 0, hits: 0,
     golden: false, goldenT: 12,
     mice: [], bugs: [], parts: [], texts: [], pending: [], nextId: 1,
     spawnT: 1.2, fireT: 0, recoil: 0, shake: 0, fireAnim: 0, angle: -0.4, hitStop: 0, shock: 0,

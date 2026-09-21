@@ -1,5 +1,5 @@
 // All canvas drawing: scene, actors, particles. HUD lives in hud.js.
-import { S, view, pointer, TAU, FONT, rnd, clamp, gun } from './state.js';
+import { S, view, pointer, TAU, FONT, RELOAD_LEN, rnd, clamp, gun } from './state.js';
 import { clouds } from './entities.js';
 
 let ctx = null;
@@ -246,7 +246,8 @@ export function drawGun() {
   ctx.fillStyle = '#3a2a14'; for (const [cx, cy] of [[boxX + 8, boxY + 6], [boxX + boxW - 8, boxY + 6], [boxX + 8, boxY + boxH - 6], [boxX + boxW - 8, boxY + boxH - 6]]) circle(cx, cy, 3);
 
   // ammo belt hanging from the gun past the cat; the golden mouse rides first
-  const n = Math.min(12, Math.floor(S.ammo / (S.maxAmmo / 12)) + (S.ammo > 0 ? 1 : 0));
+  const beltAmmo = S.reloading ? S.maxAmmo * (1 - S.reloadT / RELOAD_LEN) : S.ammo; // the belt visibly crawls back in while reloading
+  const n = Math.min(12, Math.floor(beltAmmo / (S.maxAmmo / 12)) + (beltAmmo > 0 ? 1 : 0));
   const b0x = g.x - 44, b0y = g.y + 6, b1x = g.x - 205, b1y = g.y + 118;
   const brot = Math.atan2(b0y - b1y, b0x - b1x);
   for (let i = 0; i < n; i++) {
@@ -354,6 +355,31 @@ export function drawBackground() {
   ctx.fillStyle = '#d8b8b0'; heart(sx, sy + 76, 6);
 }
 
+// ---------- touch aiming guide ----------
+// With a finger the barrel does not point at the touch, so show where the mice will fly
+// and a small tilt slider at the finger.
+function drawTouchGuide() {
+  if (!pointer.touch || !S.running || S.paused) return;
+  const g = gun(), { H } = view, a = S.angle, L = 134;
+  let x = g.x + Math.cos(a) * L, y = g.y + Math.sin(a) * L, vx = Math.cos(a) * 870, vy = Math.sin(a) * 870;
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  for (let i = 0; i < 16; i++) {
+    const step = 0.045; x += vx * step; y += vy * step; vy += 260 * step;
+    if (y > H * 0.8 || x > view.W) break;
+    ctx.globalAlpha = 0.8 - i * 0.04; circle(x, y, 3.2 - i * 0.1);
+  }
+  ctx.globalAlpha = 1;
+  if (pointer.down) {
+    const top = H * 0.2, bot = H * 0.92, px = clamp(pointer.x, 30, view.W - 30);
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bot); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.moveTo(px, top - 16); ctx.lineTo(px - 9, top - 2); ctx.lineTo(px + 9, top - 2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(px, bot + 16); ctx.lineTo(px - 9, bot + 2); ctx.lineTo(px + 9, bot + 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(245,196,0,.9)'; circle(px, clamp(pointer.y, top, bot), 11);
+  }
+}
+
 // ---------- full scene ----------
 export function drawScene() {
   ctx.save();
@@ -363,6 +389,7 @@ export function drawScene() {
   const g = gun();
   drawCat(g.x - 118, g.y - 28, catMood());
   drawGun();
+  drawTouchGuide();
   for (const m of S.mice) drawMouse(m.x, m.y, m.rot, m.golden ? 1.6 : 1.1, true, m.golden);
   for (const p of S.parts) {
     const a = clamp(p.life / p.max, 0, 1);

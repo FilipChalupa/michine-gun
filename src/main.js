@@ -1,6 +1,6 @@
 // Bootstrap: canvas sizing, input, overlay screens, pause, loop, PWA.
 import { S, view, pointer, motion, meta, newGame, loadPrefs } from './state.js';
-import { audio, sfx, unlock, setMute, loadMute, startAmbient, stopAmbient, suspend, resume } from './audio.js';
+import { audio, unlock, setMute, loadMute, startAmbient, stopAmbient, startMusic, stopMusic, setMusic, suspend, resume } from './audio.js';
 import { update, hooks } from './entities.js';
 import { initRender, drawScene } from './render.js';
 import { drawHUD, drawTitleSign } from './hud.js';
@@ -15,6 +15,7 @@ const hintEl = document.getElementById('hint');
 const rotateEl = document.getElementById('rotate');
 const pauseBtn = document.getElementById('pause');
 const muteBtn = document.getElementById('mute');
+const musicBtn = document.getElementById('music');
 const START_MSG = msgEl.textContent;
 let overlayMode = 'start';
 
@@ -40,9 +41,13 @@ resize();
 loadPrefs(); loadMute();
 const rm = window.matchMedia('(prefers-reduced-motion: reduce)');
 motion.reduced = rm.matches; rm.addEventListener('change', e => { motion.reduced = e.matches; });
-function refreshMute() { muteBtn.textContent = audio.muted ? '🔇 TICHO' : '🔊 ZVUK'; }
+function refreshMute() {
+  muteBtn.textContent = audio.muted ? '🔇 TICHO' : '🔊 ZVUK';
+  musicBtn.textContent = audio.music ? '🎵 HUDBA' : '🎵 BEZ HUDBY'; musicBtn.style.opacity = audio.music && !audio.muted ? '1' : '.6';
+}
 refreshMute();
 muteBtn.addEventListener('click', () => { setMute(!audio.muted); refreshMute(); });
+musicBtn.addEventListener('click', () => { setMusic(!audio.music); refreshMute(); });
 
 // ---------- screen wake lock (keeps the phone awake while playing) ----------
 let wakeLock = null;
@@ -67,7 +72,7 @@ function showOverlay(mode) {
     statsEl.innerHTML = `SKÓRE <b>${S.score}</b> &nbsp;·&nbsp; VLNA <b>${S.wave}</b> &nbsp;·&nbsp; MÍR <b>${Math.round(S.peace)}%</b>`;
     btn.textContent = 'POKRAČOVAT';
   }
-  hintEl.hidden = mode === 'pause';
+  hintEl.hidden = mode === 'pause'; document.getElementById('touchhint').hidden = mode === 'pause';
   pauseBtn.hidden = true;
   btn.focus();
 }
@@ -79,21 +84,21 @@ function unpause() {
   S.paused = false; overlay.hidden = true; pauseBtn.hidden = false; resume(); keepAwake();
 }
 function start() {
-  unlock(); startAmbient(); newGame(); overlay.hidden = true; pauseBtn.hidden = false; keepAwake();
+  unlock(); startAmbient(); startMusic(); newGame(); overlay.hidden = true; pauseBtn.hidden = false; keepAwake();
   pointer.x = view.W * 0.7; pointer.y = view.H * 0.4;
 }
 btn.addEventListener('click', () => { if (overlayMode === 'pause') unpause(); else start(); });
 pauseBtn.addEventListener('click', pause);
-hooks.onGameOver = () => { stopAmbient(); releaseWake(); showOverlay('over'); };
+hooks.onGameOver = () => { stopAmbient(); stopMusic(); releaseWake(); showOverlay('over'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 window.addEventListener('blur', () => { pointer.down = false; pointer.space = false; pause(); });
 
 // ---------- input ----------
 canvas.addEventListener('pointerdown', e => {
-  pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.down = true; unlock();
+  pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.down = true; pointer.touch = e.pointerType === 'touch'; unlock();
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
 });
-canvas.addEventListener('pointermove', e => { pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; });
+canvas.addEventListener('pointermove', e => { pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.touch = e.pointerType === 'touch'; });
 canvas.addEventListener('pointerup', () => { pointer.down = false; });
 canvas.addEventListener('pointercancel', () => { pointer.down = false; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
@@ -104,6 +109,7 @@ window.addEventListener('keydown', e => {
     if (!overlay.hidden) btn.click(); else pointer.space = true;
   }
   if (e.key === 'm' || e.key === 'M') { setMute(!audio.muted); refreshMute(); }
+  if (e.key === 'h' || e.key === 'H') { setMusic(!audio.music); refreshMute(); }
   if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (S.running) { S.paused ? unpause() : pause(); } }
 });
 window.addEventListener('keyup', e => { if (e.code === 'Space') pointer.space = false; });

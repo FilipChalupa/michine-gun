@@ -1,5 +1,5 @@
 // Game logic: spawning, waves, firing, collisions, particles.
-import { S, view, pointer, motion, gun, rnd, clamp, pick, floatText, BUG_TYPES, BOSS_LINES, BREAK_LEN, saveBest } from './state.js';
+import { S, view, pointer, motion, gun, rnd, clamp, pick, floatText, BUG_TYPES, BOSS_LINES, BREAK_LEN, RELOAD_LEN, saveBest } from './state.js';
 import { sfx } from './audio.js';
 
 export const clouds = Array.from({ length: 7 }, () => ({ x: Math.random(), y: 0.05 + Math.random() * 0.3, s: rnd(0.7, 1.5), v: rnd(6, 14) }));
@@ -50,7 +50,7 @@ export function startWave(n) {
   const boss = n % 5 === 0; const { W, H } = view;
   S.quota = boss ? 4 + n : 6 + n * 3;
   floatText(W * 0.55, H * 0.35, boss ? 'VLNA ' + n + ' · BOSS' : 'VLNA ' + n, boss ? '#ff6b6b' : '#f5c400', 60, 1.8);
-  const tips = { 1: 'Drž tlačítko a pal! Ale v dávkách, hlaveň se přehřívá.', 2: 'Kritické bugy P0 potřebují 3 myši!', 3: 'Rychlé regrese! Miř před ně.', 4: 'Duplicity se dělí, cache se vrací.', 5: 'Heisenbug mizí a objevuje se jinde.' };
+  const tips = { 1: 'Pal v dávkách, hlaveň se přehřívá. Pás se nabije, až když dojde.', 2: 'Kritické bugy P0 potřebují 3 myši!', 3: 'Rychlé regrese! Miř před ně.', 4: 'Duplicity se dělí, cache se vrací.', 5: 'Heisenbug mizí a objevuje se jinde.' };
   if (boss) {
     const hp = 15 + 5 * (n / 5 - 1);
     makeBug('B', { baseY: H * 0.4, hp, maxhp: hp });
@@ -64,8 +64,8 @@ export function startWave(n) {
 function endWave() {
   S.phase = 'break'; S.breakT = BREAK_LEN; const { W, H } = view;
   floatText(W * 0.55, H * 0.35, 'VLNA ' + S.wave + ' HOTOVÁ', '#7CFC9A', 48, 2.5);
-  floatText(W * 0.55, H * 0.35 + 46, 'opraveno ' + S.waveHits + ' bugů · pás doplněn, hlaveň chladne', '#f3e7cf', 20, 3);
-  S.ammo = S.maxAmmo; S.heat = 0; S.overheated = false; sfx.waveDone();
+  floatText(W * 0.55, H * 0.35 + 46, 'opraveno ' + S.waveHits + ' bugů · hlaveň chladne', '#f3e7cf', 20, 3);
+  S.heat = 0; S.overheated = false; sfx.waveDone();
 }
 
 function cheerUp(gr) {
@@ -117,7 +117,8 @@ export function fire() {
   const sx = g.x + Math.cos(a) * L, sy = g.y + Math.sin(a) * L;
   const sp = golden ? 1000 : rnd(820, 920);
   S.mice.push({ x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: a, t: 0, golden, hitIds: golden ? new Set() : null });
-  S.ammo -= 1; S.shots++; S.recoil = 1; S.fireAnim = 0.12; shake(golden ? 5 : 2);
+  S.ammo -= 1; S.shots++;
+  if (S.ammo <= 0) { S.ammo = 0; S.reloading = true; S.reloadT = RELOAD_LEN; floatText(g.x + 40, g.y - 70, 'PÁS PRÁZDNÝ · NABÍJÍM', '#ffb3b3', 18, 1); sfx.reload(); } S.recoil = 1; S.fireAnim = 0.12; shake(golden ? 5 : 2);
   S.heat = Math.min(1, S.heat + 0.06);
   if (S.heat >= 1 && !S.overheated) { S.overheated = true; floatText(g.x + 60, g.y - 80, 'PŘEHŘÁTO!', '#ff6b6b', 24, 1.2); sfx.overheat(); }
   if (golden) { S.golden = false; floatText(sx, sy - 30, 'ZLATÁ MYŠ!', '#ffd700', 20, 0.8); }
@@ -135,11 +136,18 @@ export function update(rawDt) {
   S.time += dt;
   const g = gun(), { W, H } = view;
 
-  // aiming
-  const dx = pointer.x - g.x, dy = pointer.y - g.y;
-  let target = Math.atan2(dy, dx);
-  if (dx < 0) target = dy < 0 ? -1.45 : 0.2;
-  target = clamp(target, -1.45, 0.22);
+  // aiming: a mouse aims at the cursor; a finger tilts the barrel by its height above the bottom edge,
+  // so the thumb can rest anywhere without covering the targets
+  let target;
+  if (pointer.touch) {
+    const t = clamp((H - pointer.y - H * 0.08) / (H * 0.72), 0, 1);
+    target = 0.22 + (-1.45 - 0.22) * t;
+  } else {
+    const dx = pointer.x - g.x, dy = pointer.y - g.y;
+    target = Math.atan2(dy, dx);
+    if (dx < 0) target = dy < 0 ? -1.45 : 0.2;
+    target = clamp(target, -1.45, 0.22);
+  }
   S.angle += (target - S.angle) * Math.min(1, dt * 18);
 
   // heat & firing
@@ -150,11 +158,14 @@ export function update(rawDt) {
   }
   S.fireT -= dt;
   if ((pointer.down || pointer.space) && S.fireT <= 0) {
-    if (S.overheated) S.fireT = 0.2;
+    if (S.overheated || S.reloading) S.fireT = 0.2;
     else if (S.ammo >= 1) { fire(); S.fireT = 0.1; }
-    else { S.fireT = 0.25; if (Math.random() < 0.5) floatText(g.x + 40, g.y - 70, 'DOCHÁZÍ MYŠI!', '#ffb3b3', 16, 0.6); }
   }
-  S.ammo = Math.min(S.maxAmmo, S.ammo + 6 * dt);
+  // the belt refills only once it is completely empty
+  if (S.reloading) {
+    S.reloadT -= dt;
+    if (S.reloadT <= 0) { S.reloading = false; S.ammo = S.maxAmmo; sfx.reloaded(); floatText(g.x + 40, g.y - 70, 'PÁS NABITÝ', '#7CFC9A', 16, 0.7); }
+  }
   S.recoil = Math.max(0, S.recoil - dt * 9);
   S.fireAnim = Math.max(0, S.fireAnim - dt);
   S.shake = Math.max(0, S.shake - rawDt * 14);

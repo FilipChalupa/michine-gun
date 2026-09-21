@@ -28,16 +28,19 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 
 ## Ovládání
 
-- Myš / dotyk: míření a palba (držet tlačítko nebo prst); na mobilu nejlépe na šířku
+- Myš: míření kurzorem, palba držením tlačítka
+- Dotyk: drž prst kdekoli a posouvej ho nahoru a dolů. Náklon hlavně odpovídá výšce prstu od spodního okraje, vodorovná poloha nehraje roli. Tečkovaná čára ukazuje dráhu myší. Na mobilu nejlépe na šířku.
 - Mezerník: palba
 - P nebo Esc: pauza (hra se pozastaví i při přepnutí záložky)
 - M: vypnout / zapnout zvuk
+- H: vypnout / zapnout hudbu
 
 ## Pravidla
 
 - Hlaveň se při souvislé palbě přehřívá. Přehřátá hlaveň chvíli nestřílí, střílej v dávkách.
+- Pás má 40 myší a sám se nedoplňuje. Nabije se (1,8 s) až ve chvíli, kdy úplně dojde.
 - Každých pár sekund se do pásu nabije zlatá myš, která proletí všemi bugy a dává trojnásobné poškození.
-- Vlny mají pevný počet bugů. Po vyčištění vlny je 4 s přestávka, doplní se pás a hlaveň vychladne.
+- Vlny mají pevný počet bugů. Po vyčištění vlny je 4 s přestávka a hlaveň vychladne.
 - Každá pátá vlna je boss „PROD DOWN“: obří bug s vlastním ukazatelem zdraví a hláškami.
 - Každý rozveselený bug vrací trochu míru a zvyšuje kombo (násobitel skóre); kombo se resetuje při průniku.
 - Nejlepší skóre se ukládá do localStorage.
@@ -62,7 +65,7 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 - `src/entities.js` – herní logika: vlny, spawn, střelba, kolize, částice
 - `src/render.js` – kreslení scény, kočky, kulometu, myší a bugů
 - `src/hud.js` – HUD a cedule s názvem
-- `src/audio.js` – syntetizované zvuky a ambient (WebAudio, bez souborů)
+- `src/audio.js` – syntetizované zvuky, ambient a hudba (WebAudio, bez souborů). Hudba je 16taktový pochod ze sekvenceru, tempo roste s vlnami a při bossovi přejde do moll.
 - `manifest.webmanifest`, `sw.js`, `icons/`, `screenshots/`, `fonts/` – PWA, ikony, screenshoty pro instalaci, lokální font
 
 Respektuje `prefers-reduced-motion` (vypne otřesy obrazovky a zpomalení času při zásahu).

@@ -21,11 +21,12 @@
 <canvas id="c"></canvas>
 <div id="overlay">
   <div class="sign"><h1>Mišine <span>gun</span></h1><p class="sub">VÍCE MYŠÍ. MÉNĚ NÁSILÍ.</p></div>
-  <p id="msg">Bugy táhnou na produkci. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý bug zasažený myší se rozveselí, přestane kousat a odletí domů. Když se dostanou až k tobě, ubývá mír. Pozor na přehřátou hlaveň, střílej v dávkách.</p>
+  <p id="msg">Bugy táhnou na produkci. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý bug zasažený myší se rozveselí, přestane kousat a odletí domů. Když se dostanou až k tobě, ubývá mír. Střílej v dávkách, hlaveň se přehřívá a pás se nabije, až když úplně dojde.</p>
   <div id="stats"></div>
   <button id="btn">ZAHÁJIT MÍROVOU MISI</button>
   <button id="install" hidden>⬇ NAINSTALOVAT HRU</button>
-  <p class="hint" id="hint">Myš / dotyk = míření a palba &middot; Mezerník = palba &middot; P = pauza &middot; M = zvuk</p>
+  <p class="hint" id="hint">Myš = míření a palba &middot; Mezerník = palba &middot; P = pauza &middot; M = zvuk &middot; H = hudba</p>
+  <p class="hint" id="touchhint">Dotyk: drž prst kdekoli a posouvej ho nahoru a dolů. Čím výš prst, tím výš míří hlaveň.</p>
   <p class="hint" id="ioshint" hidden>Na iPhonu: Sdílet → Přidat na plochu, hra pak běží na celou obrazovku i offline.</p>
   <p class="hint" id="rotate" hidden>📱 Na mobilu se hraje nejlíp na šířku.</p>
 </div>
@@ -33,6 +34,7 @@
 <div id="safe"></div>
 <div id="controls">
   <button class="ctl" id="pause" title="Pauza (P)" hidden>⏸ PAUZA</button>
+  <button class="ctl" id="music" title="Hudba (H)">🎵 HUDBA</button>
   <button class="ctl" id="mute" title="Zvuk (M)">🔊 ZVUK</button>
 </div>
 <script type="module" src="src/main.js"></script>

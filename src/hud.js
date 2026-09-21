@@ -1,5 +1,5 @@
 // Title sign and heads-up display.
-import { S, view, meta, FONT } from './state.js';
+import { S, view, meta, FONT, RELOAD_LEN } from './state.js';
 import { getCtx, stencil, rrect, heart, drawMouse } from './render.js';
 
 export function drawTitleSign() {
@@ -19,18 +19,19 @@ export function drawTitleSign() {
 
 export function drawHUD() {
   const ctx = getCtx(); const { W, H } = view;
-  const right = W - 16 - view.safe.r, pw = Math.min(220, W * 0.3), px = right - pw;
-  ctx.save(); ctx.translate(0, view.safe.t);
-  ctx.fillStyle = 'rgba(20,14,8,.42)'; rrect(px - 30, 8, pw + 40, 206, 10); ctx.fill();
-  stencil('SKÓRE', right, 26, 14, '#f3e7cf', 'right');
-  stencil(String(S.score), right, 52, 34, '#f5c400', 'right');
-  stencil('NEJLEPŠÍ ' + meta.best, right, 78, 13, '#e0d3b3', 'right');
-  stencil(S.phase === 'break' ? 'DALŠÍ VLNA ZA ' + Math.ceil(S.breakT) : 'VLNA ' + S.wave + '  ·  ' + Math.max(0, S.quota - S.spawned) + ' v záloze', right, 100, S.phase === 'break' ? 16 : 14, '#f3e7cf', 'right');
-  if (S.combo >= 5) stencil('KOMBO x' + (1 + Math.min(S.combo, 30) * 0.1).toFixed(1), right, 122, 16, '#ff9ec2', 'right');
+  // Compact panel on the left, under the title sign and above the cat, so it never covers incoming bugs.
+  const L = 16 + view.safe.l, y0 = 92 + view.safe.t, PW = 250, right = L + PW - 12;
+  const px = L + 34, pw = PW - 34 - 12;
+  ctx.fillStyle = 'rgba(20,14,8,.42)'; rrect(L, y0, PW, 150, 10); ctx.fill();
+  stencil('SKÓRE', L + 12, y0 + 22, 14, '#f3e7cf');
+  stencil(String(S.score), right, y0 + 24, 32, '#f5c400', 'right');
+  stencil('NEJLEPŠÍ ' + meta.best, L + 12, y0 + 50, 12, '#e0d3b3');
+  stencil(S.phase === 'break' ? 'DALŠÍ VLNA ZA ' + Math.ceil(S.breakT) : 'VLNA ' + S.wave + ' · ' + Math.max(0, S.quota - S.spawned) + ' v záloze', right, y0 + 50, 13, '#f3e7cf', 'right');
+  if (S.combo >= 5) stencil('KOMBO x' + (1 + Math.min(S.combo, 30) * 0.1).toFixed(1), right, y0 + 68, 14, '#ff9ec2', 'right');
 
   // peace
-  const py = 136;
-  ctx.fillStyle = '#ff6b8b'; heart(px - 14, py + 8, 8);
+  const py = y0 + 80;
+  ctx.fillStyle = '#ff6b8b'; heart(px - 16, py + 8, 8);
   ctx.fillStyle = 'rgba(0,0,0,.45)'; rrect(px, py, pw, 16, 8); ctx.fill();
   const pc = S.peace / 100;
   ctx.fillStyle = pc > 0.5 ? '#ff6b8b' : pc > 0.25 ? '#ffb347' : '#ff4d4d';
@@ -38,11 +39,13 @@ export function drawHUD() {
   stencil('MÍR ' + Math.round(S.peace) + '%', px + pw / 2, py + 8, 12, '#fff', 'center');
 
   // ammo
-  const ay = py + 26;
+  const ay = py + 24;
   ctx.fillStyle = 'rgba(0,0,0,.45)'; rrect(px, ay, pw, 12, 6); ctx.fill();
-  ctx.fillStyle = S.ammo < 5 ? '#ff8f8f' : '#d9cbb2'; rrect(px, ay, Math.max(12, pw * S.ammo / S.maxAmmo), 12, 6); ctx.fill();
-  stencil('MYŠI ' + Math.floor(S.ammo) + (S.golden ? '  ·  ZLATÁ V PÁSU' : ''), px + pw / 2, ay + 6, 10, '#2b2119', 'center');
-  drawMouse(px - 14, ay + 6, 0, 0.55, false, S.golden);
+  const fill = S.reloading ? 1 - S.reloadT / RELOAD_LEN : S.ammo / S.maxAmmo;
+  ctx.fillStyle = S.reloading ? '#8ecbff' : S.ammo <= 8 ? '#ff8f8f' : '#d9cbb2';
+  if (fill > 0) { rrect(px, ay, Math.max(12, pw * fill), 12, 6); ctx.fill(); }
+  stencil(S.reloading ? 'NABÍJÍM PÁS…' : 'MYŠI ' + S.ammo + (S.golden ? '  ·  ZLATÁ V PÁSU' : ''), px + pw / 2, ay + 6, 10, fill > 0.45 ? '#2b2119' : '#e0d3b3', 'center');
+  drawMouse(px - 16, ay + 6, 0, 0.55, false, S.golden);
 
   // heat
   const hy = ay + 20;
@@ -50,9 +53,7 @@ export function drawHUD() {
   const hc = S.overheated ? '#ff3b3b' : S.heat > 0.7 ? '#ff8c42' : '#ffd166';
   if (S.heat > 0) { ctx.fillStyle = hc; rrect(px, hy, Math.max(12, pw * S.heat), 12, 6); ctx.fill(); }
   stencil(S.overheated ? 'PŘEHŘÁTO · chladne' : 'HLAVEŇ', px + pw / 2, hy + 6, 10, S.heat > 0.5 ? '#2b2119' : '#e0d3b3', 'center');
-  ctx.fillStyle = hc; ctx.beginPath(); ctx.moveTo(px - 14, hy + 12); ctx.quadraticCurveTo(px - 22, hy + 2, px - 14, hy - 4); ctx.quadraticCurveTo(px - 6, hy + 2, px - 14, hy + 12); ctx.fill();
-
-  ctx.restore();
+  ctx.fillStyle = hc; ctx.beginPath(); ctx.moveTo(px - 16, hy + 12); ctx.quadraticCurveTo(px - 24, hy + 2, px - 16, hy - 4); ctx.quadraticCurveTo(px - 8, hy + 2, px - 16, hy + 12); ctx.fill();
 
   // boss bar
   const boss = S.bugs.find(b => b.type === 'B' && !b.happy);
