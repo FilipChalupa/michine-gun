@@ -1,5 +1,5 @@
 // All canvas drawing: scene, actors, particles. HUD lives in hud.js.
-import { S, view, pointer, TAU, FONT, RELOAD_LEN, rnd, clamp, gun } from './state.js';
+import { S, view, pointer, TAU, FONT, BOSSES, rnd, clamp, gun } from './state.js';
 import { clouds } from './entities.js';
 
 let ctx = null;
@@ -50,8 +50,9 @@ export function drawMouse(x, y, rot, s, scream, golden = false) {
 export function drawBug(gr) {
   ctx.save(); ctx.translate(gr.x, gr.y); ctx.globalAlpha = clamp(gr.fade, 0, 1);
   const s = gr.size, happy = gr.happy, t = gr.t, boss = gr.type === 'B';
-  const shell = happy ? '#f4a6ba' : boss ? '#7a1f8a' : gr.type === 'b' ? '#b83b3b' : gr.type === 'f' ? '#6f8f4a' : gr.type === 'h' ? '#5b7ea8' : gr.type === 'c' ? '#8a7a3c' : gr.type === 'd' ? '#3f8a7a' : '#4f8a3c';
-  const shellDark = happy ? '#c7607f' : boss ? '#2e0b36' : gr.type === 'b' ? '#5e1b1b' : '#243d1a';
+  const bossShell = { prod: '#7a1f8a', legacy: '#6b6355', leak: '#2f6fb0' }[gr.boss] || '#7a1f8a';
+  const shell = happy ? '#f4a6ba' : boss ? bossShell : gr.type === 'b' ? '#b83b3b' : gr.type === 'f' ? '#6f8f4a' : gr.type === 'h' ? '#5b7ea8' : gr.type === 'c' ? '#8a7a3c' : gr.type === 'd' ? '#3f8a7a' : '#4f8a3c';
+  const shellDark = happy ? '#c7607f' : boss ? ({ prod: '#2e0b36', legacy: '#2b261d', leak: '#0e2c4d' }[gr.boss] || '#2e0b36') : gr.type === 'b' ? '#5e1b1b' : '#243d1a';
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   if (!happy && gr.type === 'f') {
@@ -124,10 +125,16 @@ export function drawBug(gr) {
     ctx.beginPath(); ctx.arc(0, s * 0.45, s * 0.32, Math.PI * 0.1, Math.PI * 0.9); ctx.stroke();
   }
   if ((gr.type === 'b' || boss) && !happy) { // hard hat
-    ctx.fillStyle = boss ? '#ff3b3b' : '#e0b100'; ctx.beginPath(); ctx.arc(0, -s * 0.55, s * 0.72, Math.PI, 0); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = boss ? '#6b0000' : '#8a6d00'; ctx.lineWidth = 2; ctx.stroke();
+    const hatC = boss ? ({ prod: '#ff3b3b', legacy: '#9a8a62', leak: '#1d4f8a' }[gr.boss] || '#ff3b3b') : '#e0b100';
+    ctx.fillStyle = hatC; ctx.beginPath(); ctx.arc(0, -s * 0.55, s * 0.72, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = boss ? 'rgba(0,0,0,.55)' : '#8a6d00'; ctx.lineWidth = 2; ctx.stroke();
     rrect(-s * 0.9, -s * 0.62, s * 1.8, s * 0.14, 3); ctx.fill(); ctx.stroke();
-    stencil(boss ? 'PROD' : 'P0', 0, -s * 0.85, Math.max(9, s * 0.3), boss ? '#fff' : '#3a2d00', 'center');
+    stencil(boss ? ((BOSSES.find(k => k.key === gr.boss) || BOSSES[0]).hat) : 'P0', 0, -s * 0.85, Math.max(9, s * 0.26), boss ? '#fff' : '#3a2d00', 'center');
+    if (gr.boss === 'legacy') { // cobwebs
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let i = 0; i < 4; i++) { ctx.moveTo(s * 0.95, -s * 0.2); ctx.lineTo(s * (0.35 + i * 0.12), -s * (1.15 - i * 0.12)); }
+      ctx.moveTo(s * 0.75, -s * 0.5); ctx.quadraticCurveTo(s * 0.6, -s * 0.75, s * 0.55, -s * 0.95); ctx.stroke();
+    }
   }
   if (gr.type === 'c' && !happy) { // little refresh arrow badge
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -s * 0.5, s * 0.18, 0.4, TAU - 0.9); ctx.stroke();
@@ -242,11 +249,12 @@ export function drawGun() {
   ctx.strokeStyle = '#3a2a14'; ctx.lineWidth = 3; ctx.strokeRect(boxX, boxY, boxW, boxH);
   ctx.strokeStyle = '#7a6238'; ctx.lineWidth = 2; ctx.strokeRect(boxX + 10, boxY + 10, boxW - 20, boxH - 20);
   stencil('ŽIVÁ MUNICE', boxX + boxW / 2, boxY + 34, 16, '#d8c9a3', 'center');
-  drawMouse(boxX + boxW / 2, boxY + 62, 0, 0.8, false);
+  drawMouse(boxX + boxW / 2 - 52, boxY + 62, 0, 0.8, false);
+  stencil(pointer.touch ? 'ŤUKNI = PŘEBÍT' : 'R / KLIK = PŘEBÍT', boxX + boxW / 2 + 18, boxY + 62, 11, S.reloading ? '#8ecbff' : '#b9a67c', 'center');
   ctx.fillStyle = '#3a2a14'; for (const [cx, cy] of [[boxX + 8, boxY + 6], [boxX + boxW - 8, boxY + 6], [boxX + 8, boxY + boxH - 6], [boxX + boxW - 8, boxY + boxH - 6]]) circle(cx, cy, 3);
 
   // ammo belt hanging from the gun past the cat; the golden mouse rides first
-  const beltAmmo = S.reloading ? S.maxAmmo * (1 - S.reloadT / RELOAD_LEN) : S.ammo; // the belt visibly crawls back in while reloading
+  const beltAmmo = S.reloading ? S.maxAmmo * (1 - S.reloadT / S.reloadLen) : S.ammo; // the belt visibly crawls back in while reloading
   const n = Math.min(12, Math.floor(beltAmmo / (S.maxAmmo / 12)) + (beltAmmo > 0 ? 1 : 0));
   const b0x = g.x - 44, b0y = g.y + 6, b1x = g.x - 205, b1y = g.y + 118;
   const brot = Math.atan2(b0y - b1y, b0x - b1x);

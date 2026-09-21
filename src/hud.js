@@ -1,5 +1,5 @@
 // Title sign and heads-up display.
-import { S, view, meta, FONT, RELOAD_LEN } from './state.js';
+import { S, view, meta, FONT, UPGRADES, gun } from './state.js';
 import { getCtx, stencil, rrect, heart, drawMouse } from './render.js';
 
 export function drawTitleSign() {
@@ -41,7 +41,7 @@ export function drawHUD() {
   // ammo
   const ay = py + 24;
   ctx.fillStyle = 'rgba(0,0,0,.45)'; rrect(px, ay, pw, 12, 6); ctx.fill();
-  const fill = S.reloading ? 1 - S.reloadT / RELOAD_LEN : S.ammo / S.maxAmmo;
+  const fill = S.reloading ? 1 - S.reloadT / S.reloadLen : S.ammo / S.maxAmmo;
   ctx.fillStyle = S.reloading ? '#8ecbff' : S.ammo <= 8 ? '#ff8f8f' : '#d9cbb2';
   if (fill > 0) { rrect(px, ay, Math.max(12, pw * fill), 12, 6); ctx.fill(); }
   stencil(S.reloading ? 'NABÍJÍM PÁS…' : 'MYŠI ' + S.ammo + (S.golden ? '  ·  ZLATÁ V PÁSU' : ''), px + pw / 2, ay + 6, 10, fill > 0.45 ? '#2b2119' : '#e0d3b3', 'center');
@@ -55,12 +55,20 @@ export function drawHUD() {
   stencil(S.overheated ? 'PŘEHŘÁTO · chladne' : 'HLAVEŇ', px + pw / 2, hy + 6, 10, S.heat > 0.5 ? '#2b2119' : '#e0d3b3', 'center');
   ctx.fillStyle = hc; ctx.beginPath(); ctx.moveTo(px - 16, hy + 12); ctx.quadraticCurveTo(px - 24, hy + 2, px - 16, hy - 4); ctx.quadraticCurveTo(px - 8, hy + 2, px - 16, hy + 12); ctx.fill();
 
+  // picked upgrades
+  const owned = UPGRADES.filter(u => S.up[u.id]);
+  if (owned.length) {
+    ctx.font = '16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    let ux = L + 6; const uy = y0 + 166;
+    for (const u of owned) { ctx.fillStyle = '#fff'; ctx.fillText(u.icon, ux, uy); if (S.up[u.id] > 1) { stencil('×' + S.up[u.id], ux + 20, uy + 1, 11, '#f3e7cf'); ux += 16; } ux += 24; }
+  }
+
   // boss bar
   const boss = S.bugs.find(b => b.type === 'B' && !b.happy);
   if (boss) {
     const bw = Math.min(420, W * 0.45), bx = W * 0.55 - bw / 2, by = 22 + view.safe.t;
     ctx.fillStyle = 'rgba(20,14,8,.5)'; rrect(bx - 10, by - 14, bw + 20, 40, 8); ctx.fill();
-    stencil('PROD DOWN', W * 0.55, by - 2, 14, '#ff6b6b', 'center');
+    stencil(boss.tag, W * 0.55, by - 2, 14, '#ff6b6b', 'center');
     ctx.fillStyle = 'rgba(0,0,0,.5)'; rrect(bx, by + 8, bw, 12, 6); ctx.fill();
     ctx.fillStyle = '#ff3b3b'; rrect(bx, by + 8, Math.max(12, bw * boss.hp / boss.maxhp), 12, 6); ctx.fill();
   }
@@ -68,4 +76,12 @@ export function drawHUD() {
   if (S.running && S.paused) {
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, W, H);
   }
+}
+
+// Tap targets for a manual reload: the ammo row in the HUD, and the belt + ammo crate next to the gun.
+export function isAmmoTap(x, y) {
+  const L = 16 + view.safe.l, y0 = 92 + view.safe.t, ay = y0 + 104;
+  if (x >= L && x <= L + 250 && y >= ay - 12 && y <= ay + 24) return true;
+  const g = gun();
+  return x >= g.x - 215 && x <= g.x + 125 && y >= g.y + 36 && y <= g.y + 125;
 }

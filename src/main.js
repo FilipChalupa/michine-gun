@@ -1,9 +1,9 @@
 // Bootstrap: canvas sizing, input, overlay screens, pause, loop, PWA.
 import { S, view, pointer, motion, meta, newGame, loadPrefs } from './state.js';
 import { audio, unlock, setMute, loadMute, startAmbient, stopAmbient, startMusic, stopMusic, setMusic, suspend, resume } from './audio.js';
-import { update, hooks } from './entities.js';
+import { update, hooks, reload, chooseUpgrade } from './entities.js';
 import { initRender, drawScene } from './render.js';
-import { drawHUD, drawTitleSign } from './hud.js';
+import { drawHUD, drawTitleSign, isAmmoTap } from './hud.js';
 
 const canvas = document.getElementById('c');
 const ctx = initRender(canvas);
@@ -77,7 +77,7 @@ function showOverlay(mode) {
   btn.focus();
 }
 function pause() {
-  if (!S.running || S.paused) return;
+  if (!S.running || S.paused || S.phase === 'upgrade') return; // the upgrade screen already freezes the game
   releaseWake(); S.paused = true; pointer.down = false; pointer.space = false; suspend(); showOverlay('pause');
 }
 function unpause() {
@@ -89,25 +89,59 @@ function start() {
 }
 btn.addEventListener('click', () => { if (overlayMode === 'pause') unpause(); else start(); });
 pauseBtn.addEventListener('click', pause);
-hooks.onGameOver = () => { stopAmbient(); stopMusic(); releaseWake(); showOverlay('over'); };
+// ---------- upgrade cards between waves ----------
+const upgradesEl = document.getElementById('upgrades');
+const upgradeTitle = document.getElementById('upgradetitle');
+const cardsEl = document.getElementById('cards');
+function pickUpgrade(id) { upgradesEl.hidden = true; pauseBtn.hidden = false; chooseUpgrade(id); }
+hooks.onUpgradeOffer = offer => {
+  const n = S.waveHits, noun = n === 1 ? 'bug' : n >= 2 && n <= 4 ? 'bugy' : 'bugů';
+  upgradeTitle.textContent = `VLNA ${S.wave} HOTOVÁ · ${n === 1 ? 'opraven' : n >= 2 && n <= 4 ? 'opraveny' : 'opraveno'} ${n} ${noun}`;
+  cardsEl.innerHTML = '';
+  offer.forEach((u, i) => {
+    const b = document.createElement('button'); b.className = 'card'; b.id = 'card-' + u.id;
+    const lvl = (S.up[u.id] || 0) + 1;
+    b.innerHTML = `<span class="ico">${u.icon}</span><span class="nm">${u.name}${u.max > 1 && u.max < 99 ? ' ' + lvl + '/' + u.max : ''}</span><span class="ds">${u.desc}</span><span class="key">${i + 1}</span>`;
+    b.addEventListener('click', () => pickUpgrade(u.id));
+    cardsEl.appendChild(b);
+  });
+  upgradesEl.hidden = false; pauseBtn.hidden = true;
+  setTimeout(() => { const f = cardsEl.querySelector('button'); if (f && !upgradesEl.hidden) f.focus(); }, 350); // small delay so a held fire key cannot pick by accident
+};
+
+hooks.onGameOver = () => { upgradesEl.hidden = true; stopAmbient(); stopMusic(); releaseWake(); showOverlay('over'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 window.addEventListener('blur', () => { pointer.down = false; pointer.space = false; pause(); });
 
 // ---------- input ----------
+// A press that lands on the ammo (HUD row, belt or crate) may be a tap to reload, so it holds fire
+// for a moment; if it turns out to be a hold, it fires like any other press.
+let tap = null, tapTimer = 0;
 canvas.addEventListener('pointerdown', e => {
-  pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.down = true; pointer.touch = e.pointerType === 'touch'; unlock();
+  pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.touch = e.pointerType === 'touch';
+  pointer.startY = pointer.y; pointer.startAngle = S.angle; unlock();
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  if (isAmmoTap(pointer.x, pointer.y)) {
+    tap = { x: pointer.x, y: pointer.y, t: performance.now() };
+    clearTimeout(tapTimer); tapTimer = setTimeout(() => { if (tap) { tap = null; pointer.down = true; } }, 260);
+  } else pointer.down = true;
 });
 canvas.addEventListener('pointermove', e => { pointer.x = e.clientX / view.SC; pointer.y = e.clientY / view.SC; pointer.touch = e.pointerType === 'touch'; });
-canvas.addEventListener('pointerup', () => { pointer.down = false; });
-canvas.addEventListener('pointercancel', () => { pointer.down = false; });
+canvas.addEventListener('pointerup', () => {
+  pointer.down = false;
+  if (tap && Math.hypot(pointer.x - tap.x, pointer.y - tap.y) < 24) reload();
+  tap = null; clearTimeout(tapTimer);
+});
+canvas.addEventListener('pointercancel', () => { pointer.down = false; tap = null; clearTimeout(tapTimer); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
-    if (!overlay.hidden) btn.click(); else pointer.space = true;
+    if (!overlay.hidden) btn.click(); else if (upgradesEl.hidden) pointer.space = true;
   }
+  if (e.key === 'r' || e.key === 'R') reload();
+  if (!upgradesEl.hidden && ['1', '2', '3'].includes(e.key)) { const b = cardsEl.children[+e.key - 1]; if (b) b.click(); }
   if (e.key === 'm' || e.key === 'M') { setMute(!audio.muted); refreshMute(); }
   if (e.key === 'h' || e.key === 'H') { setMusic(!audio.music); refreshMute(); }
   if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (S.running) { S.paused ? unpause() : pause(); } }

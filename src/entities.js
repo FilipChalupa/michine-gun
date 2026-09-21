@@ -1,9 +1,15 @@
 // Game logic: spawning, waves, firing, collisions, particles.
-import { S, view, pointer, motion, gun, rnd, clamp, pick, floatText, BUG_TYPES, BOSS_LINES, BREAK_LEN, RELOAD_LEN, saveBest } from './state.js';
+import { S, view, pointer, motion, gun, rnd, clamp, pick, floatText, BUG_TYPES, BOSSES, BALANCE, BREAK_LEN, saveBest, offerUpgrades, takeUpgrade } from './state.js';
 import { sfx } from './audio.js';
 
 export const clouds = Array.from({ length: 7 }, () => ({ x: Math.random(), y: 0.05 + Math.random() * 0.3, s: rnd(0.7, 1.5), v: rnd(6, 14) }));
-export const hooks = { onGameOver: () => {} };
+export const hooks = { onGameOver: () => {}, onUpgradeOffer: () => {} };
+
+// Short haptic feedback on phones; skipped with reduced motion and where unsupported (iOS).
+function buzz(pattern) {
+  if (motion.reduced || typeof navigator === 'undefined' || !navigator.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (e) {}
+}
 
 function shake(v) { if (!motion.reduced) S.shake = Math.max(S.shake, v); }
 function hitStop(t) { if (!motion.reduced) S.hitStop = Math.max(S.hitStop, t); }
@@ -25,10 +31,10 @@ export function makeBug(type, opts = {}) {
   const wave = Math.max(1, S.wave);
   const bug = {
     id: S.nextId++, type, size: T.size, hp: T.hp, maxhp: T.hp, dmg: T.dmg,
-    speed: T.speed * (1 + (wave - 1) * 0.06),
+    speed: T.speed * (1 + (wave - 1) * BALANCE.speedPerWave) * S.bugSpeed,
     x: W + T.size + 10, baseY: rnd(H * 0.16, H * 0.62), y: 0,
     happy: false, t: Math.random() * 10, fade: 1, hug: [], wob: rnd(0.8, 1.4),
-    tag: pick(T.tags), flash: 0, hidden: false, blinkT: rnd(1, 2),
+    tag: pick(T.tags), flash: 0, hidden: false, blinkT: rnd(1, 2), sinceHit: 9, spawnT: 2.5,
     ...opts,
   };
   bug.y = bug.baseY; S.bugs.push(bug); return bug;
@@ -48,37 +54,54 @@ const hittable = b => !b.happy && !b.hidden && b.fade > 0.5;
 export function startWave(n) {
   S.wave = n; S.phase = 'wave'; S.spawned = 0; S.waveHits = 0; S.spawnT = 1.0;
   const boss = n % 5 === 0; const { W, H } = view;
-  S.quota = boss ? 4 + n : 6 + n * 3;
+  S.quota = boss ? 4 + n : BALANCE.quotaBase + n * BALANCE.quotaPerWave;
   floatText(W * 0.55, H * 0.35, boss ? 'VLNA ' + n + ' · BOSS' : 'VLNA ' + n, boss ? '#ff6b6b' : '#f5c400', 60, 1.8);
   const tips = { 1: 'Pal v dávkách, hlaveň se přehřívá. Pás se nabije, až když dojde.', 2: 'Kritické bugy P0 potřebují 3 myši!', 3: 'Rychlé regrese! Miř před ně.', 4: 'Duplicity se dělí, cache se vrací.', 5: 'Heisenbug mizí a objevuje se jinde.' };
   if (boss) {
-    const hp = 15 + 5 * (n / 5 - 1);
-    makeBug('B', { baseY: H * 0.4, hp, maxhp: hp });
-    S.bossAlive = true; S.bossTalkT = 2; sfx.boss(); shake(8);
-    floatText(W * 0.55, H * 0.35 + 50, 'PROD DOWN! Zasyp ho myšmi, než dojde až k tobě.', '#f3e7cf', 20, 3);
+    const round = n / 5 - 1, kind = BOSSES[round % BOSSES.length];
+    const hp = kind.hp + BALANCE.bossHpPerRound * round;
+    makeBug('B', { baseY: H * 0.4, hp, maxhp: hp, boss: kind.key, tag: kind.tag, speed: kind.speed * S.bugSpeed });
+    S.bossAlive = true; S.bossTalkT = 2; sfx.boss(); shake(8); buzz([80, 40, 80]);
+    floatText(W * 0.55, H * 0.35 + 50, kind.tip, '#f3e7cf', 20, 3);
   } else {
     if (tips[n]) floatText(W * 0.55, H * 0.35 + 50, tips[n], '#f3e7cf', 20, 2.6);
     sfx.wave();
   }
 }
+// A cleared wave freezes the game and offers three upgrades; picking one starts a short break.
 function endWave() {
-  S.phase = 'break'; S.breakT = BREAK_LEN; const { W, H } = view;
-  floatText(W * 0.55, H * 0.35, 'VLNA ' + S.wave + ' HOTOVÁ', '#7CFC9A', 48, 2.5);
-  floatText(W * 0.55, H * 0.35 + 46, 'opraveno ' + S.waveHits + ' bugů · hlaveň chladne', '#f3e7cf', 20, 3);
   S.heat = 0; S.overheated = false; sfx.waveDone();
+  S.offer = offerUpgrades();
+  if (!S.offer.length) { S.phase = 'break'; S.breakT = BREAK_LEN; return; }
+  S.phase = 'upgrade'; pointer.down = false; pointer.space = false;
+  hooks.onUpgradeOffer(S.offer);
+}
+export function chooseUpgrade(id) {
+  if (S.phase !== 'upgrade' || !S.offer.some(u => u.id === id)) return;
+  takeUpgrade(id); const u = S.offer.find(u => u.id === id), { W, H } = view;
+  floatText(W * 0.55, H * 0.35, u.icon + ' ' + u.name, '#7CFC9A', 36, 2);
+  S.offer = []; S.phase = 'break'; S.breakT = BREAK_LEN;
+}
+// Manual reload (R key or a tap on the ammo): throws away what is left in the belt.
+export function reload() {
+  if (!S.running || S.paused || S.phase === 'upgrade' || S.reloading || S.ammo >= S.maxAmmo) return false;
+  const g = gun();
+  S.ammo = 0; S.reloading = true; S.reloadT = S.reloadLen; sfx.reload();
+  floatText(g.x + 40, g.y - 70, 'PŘEBÍJÍM', '#8ecbff', 18, 0.9);
+  return true;
 }
 
 function cheerUp(gr) {
   const { W, H } = view;
-  gr.happy = true; S.combo++; S.waveHits++;
+  gr.happy = true; S.combo++; S.waveHits++; S.cheered++;
   const mult = 1 + Math.min(S.combo, 30) * 0.1, boss = gr.type === 'B';
   const pts = Math.round((boss ? 200 : 10 * gr.maxhp * (gr.type === 'f' ? 1.5 : 1)) * mult);
   S.score += pts; S.peace = Math.min(100, S.peace + (boss ? 15 : gr.type === 'b' ? 3 : 1));
   floatText(gr.x, gr.y - gr.size - 26, '+' + pts + (S.combo >= 5 ? '  x' + mult.toFixed(1) : ''), '#f5c400', boss ? 34 : 22, 1);
   burstHearts(gr.x, gr.y, boss ? 40 : gr.type === 'b' ? 14 : 8);
   if (boss) {
-    S.bossAlive = false; sfx.bigPop(); hitStop(0.35); shake(14);
-    floatText(W * 0.55, H * 0.3, 'PROD JE ZPÁTKY!', '#7CFC9A', 44, 2);
+    S.bossAlive = false; sfx.bigPop(); hitStop(0.35); shake(14); buzz([40, 30, 40, 30, 120]);
+    floatText(W * 0.55, H * 0.3, { prod: 'PROD JE ZPÁTKY!', legacy: 'MONOLIT PŘEPSÁN!', leak: 'PAMĚŤ UVOLNĚNA!' }[gr.boss] || 'BOSS PORAŽEN!', '#7CFC9A', 44, 2);
   } else if (S.combo % 5 === 0) { hitStop(0.12); sfx.hitstop(); sfx.pop(); } else sfx.pop();
   if (gr.type === 'd') {
     for (const i of [0, 1]) makeBug('s', { x: gr.x + 10, baseY: clamp(gr.baseY + (i ? 40 : -40), H * 0.1, H * 0.7), size: 20, dmg: 5, tag: 'dup #' + (i + 1), speed: 95 * (1 + (S.wave - 1) * 0.06) });
@@ -91,14 +114,16 @@ function cheerUp(gr) {
   } });
 }
 function hitBug(gr, m) {
-  gr.hp -= m.golden ? 3 : 1; S.hits++; gr.flash = 0.12;
+  gr.hp -= m.golden ? 3 : 1; S.hits++; gr.flash = 0.12; gr.sinceHit = 0;
+  if (gr.boss === 'leak') gr.size = Math.max(80, gr.size - 3);
   if (gr.hug.length < (gr.type === 'B' ? 8 : 4)) gr.hug.push({ dx: rnd(-gr.size * 0.5, gr.size * 0.5), dy: rnd(-gr.size * 0.4, gr.size * 0.4), rot: rnd(-1, 1) });
   if (gr.type === 'b') shake(5);
   if (gr.hp <= 0) cheerUp(gr);
   else { floatText(gr.x, gr.y - gr.size - 26, gr.type === 'B' ? pick(['AU', 'to není bug', 'to nic nebylo']) : 'ERR', '#ddd', 16, 0.5); sfx.hmpf(); }
 }
 function breach(gr, i, g) {
-  S.peace -= gr.dmg; S.combo = 0; S.shock = 1.2; shake(gr.type === 'B' ? 16 : 10);
+  S.peace -= gr.dmg; S.combo = S.comboKeep ? Math.floor(S.combo / 2) : 0; S.shock = 1.2; shake(gr.type === 'B' ? 16 : 10);
+  buzz(gr.type === 'B' ? [200, 60, 200] : 70);
   puff(gr.x, gr.y, gr.type === 'B' ? 30 : 12, '#4b4b50'); sfx.thud();
   floatText(g.x + 60, g.y - 90, '-' + gr.dmg + ' MÍR', '#ff6b6b', gr.type === 'B' ? 36 : 26, 1.2);
   if (gr.type === 'B') S.bossAlive = false;
@@ -112,17 +137,21 @@ function gameOver() {
 // ---------- firing ----------
 export function fire() {
   const g = gun(), golden = S.golden;
-  const a = S.angle + (golden ? 0 : rnd(-0.06, 0.06));
   const L = 128 - S.recoil * 10;
-  const sx = g.x + Math.cos(a) * L, sy = g.y + Math.sin(a) * L;
-  const sp = golden ? 1000 : rnd(820, 920);
-  S.mice.push({ x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: a, t: 0, golden, hitIds: golden ? new Set() : null });
+  let sx = 0, sy = 0;
+  for (let k = 0; k < (golden ? 1 : S.barrels); k++) {
+    const a = S.angle + (golden ? 0 : rnd(-0.06, 0.06)) + (S.barrels > 1 && !golden ? (k ? 0.07 : -0.07) : 0);
+    sx = g.x + Math.cos(a) * L; sy = g.y + Math.sin(a) * L;
+    const sp = golden ? 1000 : rnd(820, 920);
+    S.mice.push({ x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, rot: a, t: 0, golden, hitIds: golden ? new Set() : null });
+    for (let i = 0; i < 4; i++) S.parts.push({ kind: 'spark', x: sx, y: sy, vx: Math.cos(a + rnd(-0.5, 0.5)) * rnd(80, 260), vy: Math.sin(a + rnd(-0.5, 0.5)) * rnd(80, 260), life: rnd(0.12, 0.25), max: 0.25, r: rnd(2, 5), c: golden ? '#ffd700' : '#ffd35a' });
+  }
   S.ammo -= 1; S.shots++;
-  if (S.ammo <= 0) { S.ammo = 0; S.reloading = true; S.reloadT = RELOAD_LEN; floatText(g.x + 40, g.y - 70, 'PÁS PRÁZDNÝ · NABÍJÍM', '#ffb3b3', 18, 1); sfx.reload(); } S.recoil = 1; S.fireAnim = 0.12; shake(golden ? 5 : 2);
-  S.heat = Math.min(1, S.heat + 0.06);
-  if (S.heat >= 1 && !S.overheated) { S.overheated = true; floatText(g.x + 60, g.y - 80, 'PŘEHŘÁTO!', '#ff6b6b', 24, 1.2); sfx.overheat(); }
+  if (S.ammo <= 0) { S.ammo = 0; S.reloading = true; S.reloadT = S.reloadLen; floatText(g.x + 40, g.y - 70, 'PÁS PRÁZDNÝ · NABÍJÍM', '#ffb3b3', 18, 1); sfx.reload(); }
+  S.recoil = 1; S.fireAnim = 0.12; shake(golden ? 5 : 2);
+  S.heat = Math.min(1, S.heat + S.heatPerShot);
+  if (S.heat >= 1 && !S.overheated) { S.overheated = true; floatText(g.x + 60, g.y - 80, 'PŘEHŘÁTO!', '#ff6b6b', 24, 1.2); sfx.overheat(); buzz([30, 30, 30]); }
   if (golden) { S.golden = false; floatText(sx, sy - 30, 'ZLATÁ MYŠ!', '#ffd700', 20, 0.8); }
-  for (let i = 0; i < 4; i++) S.parts.push({ kind: 'spark', x: sx, y: sy, vx: Math.cos(a + rnd(-0.5, 0.5)) * rnd(80, 260), vy: Math.sin(a + rnd(-0.5, 0.5)) * rnd(80, 260), life: rnd(0.12, 0.25), max: 0.25, r: rnd(2, 5), c: golden ? '#ffd700' : '#ffd35a' });
   S.parts.push({ kind: 'smoke', x: sx, y: sy, vx: rnd(-20, 40), vy: rnd(-60, -20), life: 0.7, max: 0.7, r: rnd(6, 12) });
   sfx.squeak(golden);
 }
@@ -130,7 +159,7 @@ export function fire() {
 // ---------- update ----------
 export function update(rawDt) {
   for (const c of clouds) { c.x -= c.v * rawDt / view.W; if (c.x < -0.2) c.x += 1.4; }
-  if (!S.running || S.paused) return;
+  if (!S.running || S.paused || S.phase === 'upgrade') return;
   let dt = rawDt;
   if (S.hitStop > 0) { S.hitStop -= rawDt; dt = rawDt * 0.12; }
   S.time += dt;
@@ -140,8 +169,11 @@ export function update(rawDt) {
   // so the thumb can rest anywhere without covering the targets
   let target;
   if (pointer.touch) {
-    const t = clamp((H - pointer.y - H * 0.08) / (H * 0.72), 0, 1);
-    target = 0.22 + (-1.45 - 0.22) * t;
+    // relative: the tilt follows how far the finger moved from where it landed (full range = 40 % of the height)
+    const k = 1.67 / (H * 0.4);
+    target = pointer.startAngle + (pointer.y - pointer.startY) * k;
+    if (target < -1.45) { pointer.startY += (-1.45 - target) / k; target = -1.45; }   // re-anchor at the limits so
+    if (target > 0.22) { pointer.startY -= (target - 0.22) / k; target = 0.22; }      // reversing responds at once
   } else {
     const dx = pointer.x - g.x, dy = pointer.y - g.y;
     target = Math.atan2(dy, dx);
@@ -163,18 +195,18 @@ export function update(rawDt) {
   S.fireT -= dt;
   if ((pointer.down || pointer.space) && S.fireT <= 0) {
     if (S.overheated || S.reloading) S.fireT = 0.2;
-    else if (S.ammo >= 1) { fire(); S.fireT = 0.1; }
+    else if (S.ammo >= 1) { fire(); S.fireT = S.fireInterval; }
   }
   // the belt refills only once it is completely empty
   if (S.reloading) {
     S.reloadT -= dt;
-    if (S.reloadT <= 0) { S.reloading = false; S.ammo = S.maxAmmo; sfx.reloaded(); floatText(g.x + 40, g.y - 70, 'PÁS NABITÝ', '#7CFC9A', 16, 0.7); }
+    if (S.reloadT <= 0) { S.reloading = false; S.ammo = S.maxAmmo; sfx.reloaded(); buzz(15); floatText(g.x + 40, g.y - 70, 'PÁS NABITÝ', '#7CFC9A', 16, 0.7); }
   }
   S.recoil = Math.max(0, S.recoil - dt * 9);
   S.fireAnim = Math.max(0, S.fireAnim - dt);
   S.shake = Math.max(0, S.shake - rawDt * 14);
   S.shock = Math.max(0, S.shock - dt);
-  if (!S.golden) { S.goldenT -= dt; if (S.goldenT <= 0) { S.golden = true; S.goldenT = 14; floatText(g.x, g.y - 115, 'ZLATÁ MYŠ V PÁSU! Proletí vším.', '#ffd700', 18, 1.6); sfx.golden(); } }
+  if (!S.golden) { S.goldenT -= dt; if (S.goldenT <= 0) { S.golden = true; S.goldenT = S.goldenEvery; floatText(g.x, g.y - 115, 'ZLATÁ MYŠ V PÁSU! Proletí vším.', '#ffd700', 18, 1.6); sfx.golden(); } }
 
   // waves
   if (S.phase === 'break') { S.breakT -= dt; if (S.breakT <= 0) startWave(S.wave + 1); }
@@ -182,14 +214,14 @@ export function update(rawDt) {
     S.spawnT -= dt;
     if (S.spawned < S.quota && S.spawnT <= 0) {
       makeBug(pickType()); S.spawned++;
-      const interval = 1.7 / (1 + (S.wave - 1) * 0.18);
-      S.spawnT = Math.max(0.4, interval * rnd(0.6, 1.3)) * (S.bossAlive ? 2.2 : 1);
+      const interval = BALANCE.spawnBase / (1 + (S.wave - 1) * BALANCE.spawnPerWave);
+      S.spawnT = Math.max(BALANCE.spawnMin, interval * rnd(0.6, 1.3)) * (S.bossAlive ? 2.2 : 1);
     }
     if (S.spawned >= S.quota && S.pending.length === 0 && !S.bugs.some(b => !b.happy)) endWave();
   }
   if (S.bossAlive) {
     S.bossTalkT -= dt;
-    if (S.bossTalkT <= 0) { const b = S.bugs.find(b => b.type === 'B' && !b.happy); if (b) floatText(b.x, b.y - b.size - 48, pick(BOSS_LINES), '#2b2119', 16, 2.2, true); S.bossTalkT = rnd(3, 4.5); }
+    if (S.bossTalkT <= 0) { const b = S.bugs.find(b => b.type === 'B' && !b.happy); if (b) floatText(b.x, b.y - b.size - 48, pick((BOSSES.find(k => k.key === b.boss) || BOSSES[0]).lines), '#2b2119', 16, 2.2, true); S.bossTalkT = rnd(3, 4.5); }
   }
   for (let i = S.pending.length - 1; i >= 0; i--) { const p = S.pending[i]; p.t -= dt; if (p.t <= 0) { S.pending.splice(i, 1); p.fn(); } }
 
@@ -213,7 +245,15 @@ export function update(rawDt) {
   // bugs
   for (let i = S.bugs.length - 1; i >= 0; i--) {
     const gr = S.bugs[i];
-    gr.t += dt; gr.flash = Math.max(0, gr.flash - dt);
+    gr.t += dt; gr.flash = Math.max(0, gr.flash - dt); gr.sinceHit += dt;
+    if (!gr.happy && gr.boss === 'legacy') { // the monolith keeps shedding old bugs
+      gr.spawnT -= dt;
+      if (gr.spawnT <= 0 && gr.x < W - 60) { gr.spawnT = 3.2; const kind = BOSSES.find(k => k.key === 'legacy'); makeBug('s', { x: gr.x - gr.size * 0.6, baseY: clamp(gr.y + rnd(-90, 90), H * 0.12, H * 0.66), size: 22, dmg: 6, tag: pick(kind.spawn) }); puff(gr.x - gr.size * 0.6, gr.y, 5, 'rgba(120,110,90,.9)'); }
+    }
+    if (!gr.happy && gr.boss === 'leak') { // the leak grows and heals while nobody shoots at it
+      if (gr.sinceHit > 1.2) { gr.hp = Math.min(gr.maxhp, gr.hp + 1.2 * dt); gr.size = Math.min(140, gr.size + 6 * dt); }
+      if (Math.random() < dt * 8) S.parts.push({ kind: 'spark', x: gr.x + rnd(-gr.size, gr.size) * 0.7, y: gr.y + gr.size * 0.8, vx: 0, vy: rnd(120, 200), life: 0.6, max: 0.6, r: rnd(3, 5), c: '#7fc4ff' });
+    }
     if (!gr.happy) {
       if (gr.type === 'h') {
         gr.blinkT -= dt;
