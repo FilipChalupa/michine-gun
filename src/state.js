@@ -35,6 +35,7 @@ export function newGame() {
     wave: 0, phase: 'break', breakT: 0.01, quota: 0, spawned: 0, waveHits: 0, bossAlive: false, bossTalkT: 3,
     ammo: 40, maxAmmo: 40, reloading: false, reloadT: 0, heat: 0, overheated: false, shots: 0, hits: 0,
     golden: false, goldenT: 12,
+    touchGuideT: null, // seconds left to show the tilt-slider hint; starts counting at the first touch
     mice: [], bugs: [], parts: [], texts: [], pending: [], nextId: 1,
     spawnT: 1.2, fireT: 0, recoil: 0, shake: 0, fireAnim: 0, angle: -0.4, hitStop: 0, shock: 0,
   });

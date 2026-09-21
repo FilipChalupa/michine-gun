@@ -150,6 +150,10 @@ export function update(rawDt) {
   }
   S.angle += (target - S.angle) * Math.min(1, dt * 18);
 
+  // the tilt-slider hint is only a tutorial: it fades out a few seconds after the first touch
+  if (S.touchGuideT === null) { if (pointer.touch && pointer.down) S.touchGuideT = 4; }
+  else if (S.touchGuideT > 0) S.touchGuideT = Math.max(0, S.touchGuideT - dt);
+
   // heat & firing
   S.heat = Math.max(0, S.heat - (S.overheated ? 0.5 : 0.3) * dt);
   if (S.overheated) {

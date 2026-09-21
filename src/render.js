@@ -369,7 +369,8 @@ function drawTouchGuide() {
     ctx.globalAlpha = 0.8 - i * 0.04; circle(x, y, 3.2 - i * 0.1);
   }
   ctx.globalAlpha = 1;
-  if (pointer.down) {
+  if (pointer.down && S.touchGuideT > 0) {
+    ctx.globalAlpha = Math.min(1, S.touchGuideT);
     const top = H * 0.2, bot = H * 0.92, px = clamp(pointer.x, 30, view.W - 30);
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bot); ctx.stroke();
@@ -377,6 +378,7 @@ function drawTouchGuide() {
     ctx.beginPath(); ctx.moveTo(px, top - 16); ctx.lineTo(px - 9, top - 2); ctx.lineTo(px + 9, top - 2); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(px, bot + 16); ctx.lineTo(px - 9, bot + 2); ctx.lineTo(px + 9, bot + 2); ctx.closePath(); ctx.fill();
     ctx.fillStyle = 'rgba(245,196,0,.9)'; circle(px, clamp(pointer.y, top, bot), 11);
+    ctx.globalAlpha = 1;
   }
 }
 
