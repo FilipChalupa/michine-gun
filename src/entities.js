@@ -29,8 +29,9 @@ function steam(x, y) {
 export function makeBug(type, opts = {}) {
   const T = BUG_TYPES[type]; const { W, H } = view;
   const wave = Math.max(1, S.wave);
+  const armor = type === 'B' ? 0 : Math.floor((wave - 1) / BALANCE.armorEvery);
   const bug = {
-    id: S.nextId++, type, size: T.size, hp: T.hp, maxhp: T.hp, dmg: T.dmg,
+    id: S.nextId++, type, size: T.size, hp: T.hp + armor, maxhp: T.hp + armor, dmg: T.dmg,
     speed: T.speed * (1 + (wave - 1) * BALANCE.speedPerWave) * S.bugSpeed,
     x: W + T.size + 10, baseY: rnd(H * 0.16, H * 0.62), y: 0,
     happy: false, t: Math.random() * 10, fade: 1, hug: [], wob: rnd(0.8, 1.4),
@@ -96,7 +97,7 @@ function cheerUp(gr) {
   gr.happy = true; S.combo++; S.waveHits++; S.cheered++;
   const mult = 1 + Math.min(S.combo, 30) * 0.1, boss = gr.type === 'B';
   const pts = Math.round((boss ? 200 : 10 * gr.maxhp * (gr.type === 'f' ? 1.5 : 1)) * mult);
-  S.score += pts; S.peace = Math.min(100, S.peace + (boss ? 15 : gr.type === 'b' ? 3 : 1));
+  S.score += pts; S.peace = Math.min(100, S.peace + (boss ? BALANCE.peacePerBoss : gr.type === 'b' ? BALANCE.peacePerCrit : BALANCE.peacePerCheer));
   floatText(gr.x, gr.y - gr.size - 26, '+' + pts + (S.combo >= 5 ? '  x' + mult.toFixed(1) : ''), '#f5c400', boss ? 34 : 22, 1);
   burstHearts(gr.x, gr.y, boss ? 40 : gr.type === 'b' ? 14 : 8);
   if (boss) {
@@ -187,7 +188,8 @@ export function update(rawDt) {
   else if (S.touchGuideT > 0) S.touchGuideT = Math.max(0, S.touchGuideT - dt);
 
   // heat & firing
-  S.heat = Math.max(0, S.heat - (S.overheated ? 0.5 : 0.3) * dt);
+  // an overheated barrel cools slower than one that is rested in time, so firing in bursts pays off
+  S.heat = Math.max(0, S.heat - (S.overheated ? BALANCE.coolOverheated : BALANCE.cool) * dt);
   if (S.overheated) {
     if (Math.random() < dt * 30) steam(g.x + Math.cos(S.angle) * 120, g.y + Math.sin(S.angle) * 120);
     if (S.heat <= 0.3) { S.overheated = false; sfx.cool(); floatText(g.x + 60, g.y - 80, 'HLAVEŇ OK', '#7CFC9A', 16, 0.7); }
@@ -251,7 +253,7 @@ export function update(rawDt) {
       if (gr.spawnT <= 0 && gr.x < W - 60) { gr.spawnT = 3.2; const kind = BOSSES.find(k => k.key === 'legacy'); makeBug('s', { x: gr.x - gr.size * 0.6, baseY: clamp(gr.y + rnd(-90, 90), H * 0.12, H * 0.66), size: 22, dmg: 6, tag: pick(kind.spawn) }); puff(gr.x - gr.size * 0.6, gr.y, 5, 'rgba(120,110,90,.9)'); }
     }
     if (!gr.happy && gr.boss === 'leak') { // the leak grows and heals while nobody shoots at it
-      if (gr.sinceHit > 1.2) { gr.hp = Math.min(gr.maxhp, gr.hp + 1.2 * dt); gr.size = Math.min(140, gr.size + 6 * dt); }
+      if (gr.sinceHit > 1.2) { gr.hp = Math.min(gr.maxhp, gr.hp + 4 * dt); gr.size = Math.min(140, gr.size + 6 * dt); }
       if (Math.random() < dt * 8) S.parts.push({ kind: 'spark', x: gr.x + rnd(-gr.size, gr.size) * 0.7, y: gr.y + gr.size * 0.8, vx: 0, vy: rnd(120, 200), life: 0.6, max: 0.6, r: rnd(3, 5), c: '#7fc4ff' });
     }
     if (!gr.happy) {

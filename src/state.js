@@ -3,7 +3,8 @@ export const TAU = Math.PI * 2;
 export const FONT = 'Anton, Impact, "Arial Black", sans-serif';
 export const BREAK_LEN = 2.5;
 // Difficulty knobs, tuned with tools/balance.mjs (bot simulation).
-export const BALANCE = { quotaBase: 6, quotaPerWave: 3, spawnBase: 1.7, spawnPerWave: 0.18, spawnMin: 0.4, speedPerWave: 0.06, bossHpPerRound: 5 };
+export const BALANCE = { quotaBase: 6, quotaPerWave: 4, spawnBase: 1.7, spawnPerWave: 0.45, spawnMin: 0.2, speedPerWave: 0.1, bossHpPerRound: 25,
+  peacePerCheer: 0.12, peacePerCrit: 1, peacePerBoss: 8, armorEvery: 8, cool: 0.45, coolOverheated: 0.3 }; // armorEvery: every N waves ordinary bugs need one more mouse
 
 // World units: on narrow screens the whole scene is scaled by SC.
 export const view = { W: 0, H: 0, SC: 1, DPR: 1, safe: { l: 0, r: 0, t: 0, b: 0 } };
@@ -28,12 +29,12 @@ export const BUG_TYPES = {
 };
 // Bosses rotate every 5th wave; hp grows with each appearance.
 export const BOSSES = [
-  { key: 'prod', tag: 'PROD DOWN', hat: 'PROD', hp: 15, speed: 20, tip: 'PROD DOWN! Zasyp ho myšmi, než dojde až k tobě.',
+  { key: 'prod', tag: 'PROD DOWN', hat: 'PROD', hp: 45, speed: 20, tip: 'PROD DOWN! Zasyp ho myšmi, než dojde až k tobě.',
     lines: ['u mě to funguje', 'to je feature', 'nešlo by to zítra?', 'kdo to mergnul?', 'ROLLBACK!', 'v pátek nedeployujeme', 'to prošlo review', 'restartovals to?', 'není to bug, je to edge case'] },
-  { key: 'legacy', tag: 'LEGACY MONOLITH', hat: 'COBOL', hp: 22, speed: 15, tip: 'LEGACY MONOLITH! Sype ze sebe staré bugy.',
+  { key: 'legacy', tag: 'LEGACY MONOLITH', hat: 'COBOL', hp: 70, speed: 15, tip: 'LEGACY MONOLITH! Sype ze sebe staré bugy.',
     lines: ['nesahej na to, funguje to', 'dokumentace neexistuje', 'autor odešel v roce 2009', 'to se přepíše příští kvartál', 'testy? jaké testy?', 'běží to na serveru pod stolem'],
     spawn: ['jQuery', 'IE6', 'COBOL', 'SOAP', 'FTP deploy', 'table layout', 'Flash', 'SVN'] },
-  { key: 'leak', tag: 'MEMORY LEAK', hat: 'LEAK', hp: 20, speed: 18, tip: 'MEMORY LEAK! Roste a léčí se, když do něj nestřílíš.',
+  { key: 'leak', tag: 'MEMORY LEAK', hat: 'LEAK', hp: 65, speed: 18, tip: 'MEMORY LEAK! Roste a léčí se, když do něj nestřílíš.',
     lines: ['ještě trochu RAM…', 'garbage collector spí', 'swap je taky paměť', 'OOM killer už jde', 'kdo drží tu referenci?'] },
 ];
 export const UPGRADES = [
