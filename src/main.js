@@ -1,6 +1,6 @@
 // Bootstrap: canvas sizing, input, overlay screens, pause, loop, PWA.
 import { S, view, pointer, motion, meta, newGame, loadPrefs } from './state.js';
-import { audio, unlock, setMute, loadMute, startAmbient, stopAmbient, startMusic, stopMusic, setMusic, suspend, resume } from './audio.js';
+import { audio, sfx, unlock, setMute, loadMute, setVolume, startAmbient, stopAmbient, startMusic, stopMusic, setMusic, suspend, resume } from './audio.js';
 import { update, hooks, reload, chooseUpgrade } from './entities.js';
 import { initRender, drawScene } from './render.js';
 import { drawHUD, drawTitleSign, isAmmoTap } from './hud.js';
@@ -48,6 +48,11 @@ function refreshMute() {
 refreshMute();
 muteBtn.addEventListener('click', () => { setMute(!audio.muted); refreshMute(); });
 musicBtn.addEventListener('click', () => { setMusic(!audio.music); refreshMute(); });
+const volMusic = document.getElementById('volmusic'), volSfx = document.getElementById('volsfx');
+volMusic.value = Math.round(audio.vol.music * 100); volSfx.value = Math.round(audio.vol.sfx * 100);
+volMusic.addEventListener('input', () => { setVolume('music', volMusic.value / 100); if (!audio.music && +volMusic.value > 0) { setMusic(true); refreshMute(); } });
+volSfx.addEventListener('input', () => setVolume('sfx', volSfx.value / 100));
+volSfx.addEventListener('change', () => { unlock(); sfx.pop(); }); // audible preview of the new level
 
 // ---------- screen wake lock (keeps the phone awake while playing) ----------
 let wakeLock = null;
