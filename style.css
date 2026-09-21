@@ -72,7 +72,8 @@ canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:crosshair
 .hint[hidden]{display:none}
 /* top right: the bottom corners are where thumbs rest when tilting the barrel on touch screens */
 #controls{position:fixed;right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));z-index:3;display:flex;gap:8px}
-.ctl{font:inherit;font-size:14px;letter-spacing:1px;background:rgba(0,0,0,.45);color:var(--cream);
+/* --ui follows the scene scale on big monitors so the buttons do not end up tiny next to a 2x scene */
+.ctl{font:inherit;font-size:calc(14px * var(--ui,1));letter-spacing:1px;background:rgba(0,0,0,.45);color:var(--cream);
   border:2px solid rgba(243,231,207,.4);border-radius:6px;padding:6px 10px;cursor:pointer}
 .ctl[hidden]{display:none}
 @media (prefers-reduced-motion: reduce){ #btn{transition:none} }
@@ -93,3 +94,5 @@ canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:crosshair
   .hint{font-size:11px}
   #upgrades{gap:6px;padding:8px} #upgradetitle{font-size:20px}
   .card{padding:8px 8px 8px;gap:3px} .card .ico{font-size:24px}
+/* portrait phones: keep the buttons clear of the title sign (music volume stays on the pause screen, H still toggles) */
+@media (max-width:520px){ #music{display:none} .ctl{font-size:12px;padding:5px 8px} }

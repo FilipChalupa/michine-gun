@@ -72,6 +72,15 @@ Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 - `src/audio.js` – syntetizované zvuky, ambient a hudba (WebAudio, bez souborů). Hudba má dvě skladby na šestnáctinové mřížce. Pochod graduje v pěti stupních podle vlny (přibývají nástroje, tempo, transpozice, od 7. vlny moll). Boss má vlastní skladbu v a moll s ostinátním basem a finále pod 35 % jeho životů. Při míru pod 30 % se přidá tlukot srdce.
 - `manifest.webmanifest`, `sw.js`, `icons/`, `screenshots/`, `fonts/` – PWA, ikony, screenshoty pro instalaci, lokální font
 
+## Stejná hra na každé obrazovce
+
+Hraje se na pevném referenčním poli 1280×720 herních jednotek (`FIELD` v `src/state.js`). Celá scéna se rovnoměrně škáluje tak, aby se pole vešlo do okna, a je ukotvená vpravo dole. Dráha bugu ke kulometu (943 jednotek), pásmo zrodu i časy jsou proto stejné na telefonu i na ultraširokém monitoru a skóre je srovnatelné.
+
+- Širší poměr stran: místo navíc je vlevo za kočkou, kde se dokreslí tábor se stanem a bednami.
+- Vyšší poměr stran (4:3, tablet): přibude nebe nahoře. Černé pruhy nejsou nikde.
+- Telefon na výšku je nouzový režim: pole se nevejde, dráha je kratší a bugy úměrně pomalejší, takže čas doletu zůstává stejný.
+- HUD a tlačítka mají vlastní měřítko, aby byly čitelné na malém displeji a ne drobné na velkém monitoru.
+
 ## Vyvážení
 
 `node tools/balance.mjs 30` odehraje hry třemi boty (začátečník, průměrný, zkušený) přímo nad herní logikou a vypíše, do které vlny se dostali. Parametry obtížnosti jsou v `BALANCE` v `src/state.js` a jdou zkoušet bez úprav kódu:

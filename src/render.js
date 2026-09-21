@@ -1,5 +1,5 @@
 // All canvas drawing: scene, actors, particles. HUD lives in hud.js.
-import { S, view, pointer, TAU, FONT, BOSSES, rnd, clamp, gun } from './state.js';
+import { S, view, pointer, TAU, FONT, BOSSES, FIELD, rnd, clamp, gun, field } from './state.js';
 import { clouds } from './entities.js';
 
 let ctx = null;
@@ -331,36 +331,65 @@ function drawSandbags(x0, x1, y, rows) {
     }
   }
 }
+function drawTent(x, y, s) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = '#5d6b45'; ctx.beginPath(); ctx.moveTo(-90, 0); ctx.lineTo(0, -95); ctx.lineTo(90, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#4a5637'; ctx.beginPath(); ctx.moveTo(0, -95); ctx.lineTo(90, 0); ctx.lineTo(40, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#2a2f1f'; ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(0, -58); ctx.lineTo(22, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#3b3b2a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-90, 0); ctx.lineTo(-118, 14); ctx.moveTo(90, 0); ctx.lineTo(118, 14); ctx.stroke();
+  ctx.fillStyle = '#eee4cc'; ctx.beginPath(); ctx.moveTo(0, -95); ctx.lineTo(0, -128); ctx.lineTo(30, -118); ctx.lineTo(0, -108); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ff6b8b'; heart(12, -118, 4);
+  ctx.restore();
+}
+function drawCrates(x, y) {
+  for (const [dx, dy, w, h] of [[0, 0, 70, 44], [62, 8, 56, 36], [18, -40, 60, 40]]) {
+    ctx.fillStyle = '#5a4526'; rrect(x + dx, y + dy - h, w, h, 3); ctx.fill();
+    ctx.strokeStyle = '#3a2a14'; ctx.lineWidth = 2.5; ctx.strokeRect(x + dx, y + dy - h, w, h);
+    ctx.strokeStyle = '#7a6238'; ctx.lineWidth = 1.5; ctx.strokeRect(x + dx + 6, y + dy - h + 6, w - 12, h - 12);
+  }
+  stencil('SÝR', x + 35, y - 22, 13, '#d8c9a3', 'center');
+}
+// Scenery is drawn in the coordinates of the fixed reference field (origin ox/oy), so towers, sign and sandbags keep
+// their place relative to the gun on every screen. Sky, hills and ground simply continue over any extra room.
 export function drawBackground() {
-  const { W, H } = view;
-  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  const { W, H } = view, F = field(), fw = FIELD.w, fh = FIELD.h;
+  const sky = ctx.createLinearGradient(0, F.oy, 0, H);
   sky.addColorStop(0, '#4f8fcf'); sky.addColorStop(0.45, '#bcd7ea'); sky.addColorStop(0.7, '#efdcb8'); sky.addColorStop(1, '#c79a56');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-  const sun = ctx.createRadialGradient(W * 0.85, H * 0.12, 10, W * 0.85, H * 0.12, W * 0.3);
+  ctx.fillStyle = '#4f8fcf'; ctx.fillRect(0, 0, W, Math.max(0, F.oy) + 1);
+  ctx.fillStyle = sky; ctx.fillRect(0, F.oy, W, H - F.oy);
+  const sunX = F.ox + fw * 0.85, sunY = F.oy + fh * 0.12;
+  const sun = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, fw * 0.3);
   sun.addColorStop(0, 'rgba(255,240,200,.85)'); sun.addColorStop(1, 'rgba(255,240,200,0)');
   ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = 'rgba(255,255,255,.85)';
   for (const c of clouds) {
-    const cx = c.x * W, cy = c.y * H, s = c.s * 30;
+    const cx = c.x * W, cy = F.oy * 0.6 + c.y * fh, s = c.s * 30;
     ellipse(cx, cy, s * 1.6, s * 0.6); ellipse(cx - s, cy + s * 0.1, s, s * 0.5); ellipse(cx + s * 0.9, cy + s * 0.05, s * 1.1, s * 0.55); ellipse(cx + s * 0.1, cy - s * 0.35, s * 0.9, s * 0.6);
   }
-  ctx.fillStyle = '#7f8a56'; ctx.beginPath(); ctx.moveTo(0, H * 0.62);
-  ctx.quadraticCurveTo(W * 0.2, H * 0.5, W * 0.4, H * 0.6); ctx.quadraticCurveTo(W * 0.6, H * 0.68, W * 0.75, H * 0.55); ctx.quadraticCurveTo(W * 0.9, H * 0.46, W, H * 0.58);
-  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#98955a'; ctx.beginPath(); ctx.moveTo(0, H * 0.7);
-  ctx.quadraticCurveTo(W * 0.3, H * 0.62, W * 0.55, H * 0.7); ctx.quadraticCurveTo(W * 0.8, H * 0.76, W, H * 0.66);
-  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
-  drawTower(W * 0.6, H * 0.72, 0.85, false);
-  drawTower(W * 0.86, H * 0.74, 1.05, true);
-  ctx.fillStyle = '#b08a4a'; ctx.fillRect(0, H * 0.78, W, H);
-  ctx.fillStyle = '#9a7740'; for (let i = 0; i < 40; i++) { const x = ((i * 977) % 1000) / 1000 * W, y = H * 0.8 + ((i * 613) % 1000) / 1000 * H * 0.2; ellipse(x, y, 8, 3); }
-  drawSandbags(W * 0.42, W + 40, H * 0.79, 3);
-  const sx = W * 0.5, sy = H * 0.63;
-  ctx.fillStyle = '#3f2c17'; ctx.fillRect(sx - 4, sy, 8, H * 0.18);
+  ctx.save(); ctx.translate(F.ox, F.oy);
+  const x0 = -F.ox - 20, x1 = W - F.ox + 20; // visible range in field coordinates
+  const hill = (color, fn) => {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x0, fh);
+    for (let x = x0; x <= x1 + 40; x += 40) ctx.lineTo(x, fn(x));
+    ctx.lineTo(x1 + 40, fh); ctx.closePath(); ctx.fill();
+  };
+  hill('#7f8a56', x => fh * (0.575 + 0.05 * Math.sin(x / 210 + 1) + 0.025 * Math.sin(x / 97 + 0.4)));
+  hill('#98955a', x => fh * (0.69 + 0.035 * Math.sin(x / 260 + 2.2)));
+  drawTower(fw * 0.6, fh * 0.72, 0.85, false);
+  drawTower(fw * 0.86, fh * 0.74, 1.05, true);
+  if (F.ox > 250) drawTent(-F.ox * 0.5 + 40, fh * 0.775, F.ox > 500 ? 1.15 : 0.95); // wide screens: a camp behind the cat
+  ctx.fillStyle = '#b08a4a'; ctx.fillRect(x0, fh * 0.78, x1 - x0, fh * 0.22 + 2);
+  ctx.fillStyle = '#9a7740';
+  for (let i = 0, n = Math.ceil((x1 - x0) / 32); i < n; i++) { const x = x0 + ((i * 977) % 1000) / 1000 * (x1 - x0), y = fh * 0.8 + ((i * 613) % 1000) / 1000 * fh * 0.2; ellipse(x, y, 8, 3); }
+  drawSandbags(fw * 0.42, x1 + 40, fh * 0.79, 3);
+  if (F.ox > 250) { drawSandbags(x0, -40, fh * 0.79, 2); drawCrates(-F.ox * 0.5 + 170, fh * 0.84); }
+  const sx = fw * 0.5, sy = fh * 0.63;
+  ctx.fillStyle = '#3f2c17'; ctx.fillRect(sx - 4, sy, 8, fh * 0.18);
   ctx.fillStyle = '#5a3d22'; rrect(sx - 74, sy - 6, 148, 96, 5); ctx.fill(); ctx.strokeStyle = '#2f1e0d'; ctx.lineWidth = 3; ctx.stroke();
   stencil('ŠŤASTNĚJŠÍ SVĚT', sx, sy + 14, 15, '#eadcbc', 'center'); stencil('JEDNU MYŠ', sx, sy + 34, 15, '#eadcbc', 'center');
   stencil('PO DRUHÉ', sx, sy + 54, 15, '#eadcbc', 'center');
   ctx.fillStyle = '#d8b8b0'; heart(sx, sy + 76, 6);
+  ctx.restore();
 }
 
 // ---------- touch aiming guide ----------
@@ -373,13 +402,13 @@ function drawTouchGuide() {
   ctx.fillStyle = 'rgba(255,255,255,.75)';
   for (let i = 0; i < 16; i++) {
     const step = 0.045; x += vx * step; y += vy * step; vy += 260 * step;
-    if (y > H * 0.8 || x > view.W) break;
+    if (y > g.y + 60 || x > view.W) break;
     ctx.globalAlpha = 0.8 - i * 0.04; circle(x, y, 3.2 - i * 0.1);
   }
   ctx.globalAlpha = 1;
   if (pointer.down && S.touchGuideT > 0) {
     ctx.globalAlpha = Math.min(1, S.touchGuideT);
-    const top = H * 0.2, bot = H * 0.92, px = clamp(pointer.x, 30, view.W - 30);
+    const top = Math.max(30, g.y - 380), bot = Math.min(H - 30, g.y + 150), px = clamp(pointer.x, 30, view.W - 30);
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(px, top); ctx.lineTo(px, bot); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.55)';

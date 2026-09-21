@@ -1,10 +1,11 @@
 // Title sign and heads-up display.
-import { S, view, meta, FONT, UPGRADES, gun } from './state.js';
+import { S, view, meta, FONT, UPGRADES, gun, field } from './state.js';
 import { getCtx, stencil, rrect, heart, drawMouse } from './render.js';
 
 export function drawTitleSign() {
-  const ctx = getCtx();
-  const x = 16 + view.safe.l, y = 14 + view.safe.t, w = 250, h = 68;
+  const ctx = getCtx(), k = view.hudK;
+  ctx.save(); ctx.scale(k, k);
+  const x = 16 + view.safe.l / k, y = 14 + view.safe.t / k, w = 250, h = 68;
   ctx.strokeStyle = '#3b3b3b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 30, 0); ctx.lineTo(x + 30, y); ctx.moveTo(x + w - 30, 0); ctx.lineTo(x + w - 30, y); ctx.stroke();
   ctx.fillStyle = 'rgba(0,0,0,.35)'; rrect(x + 4, y + 6, w, h, 6); ctx.fill();
   ctx.fillStyle = '#5a3d22'; rrect(x, y, w, h, 6); ctx.fill(); ctx.strokeStyle = '#2f1e0d'; ctx.lineWidth = 3; ctx.stroke();
@@ -15,12 +16,14 @@ export function drawTitleSign() {
   ctx.fillStyle = '#f3e7cf'; ctx.fillText('Mišine ', x + 16, y + 27);
   ctx.fillStyle = '#f5c400'; ctx.fillText('gun', x + 16 + w1, y + 27);
   stencil('VÍCE MYŠÍ. MÉNĚ NÁSILÍ.', x + 16, y + 54, 12, '#d9c9a5');
+  ctx.restore();
 }
 
 export function drawHUD() {
-  const ctx = getCtx(); const { W, H } = view;
+  const ctx = getCtx(), k = view.hudK, W = view.W / k, H = view.H / k;
+  ctx.save(); ctx.scale(k, k);
   // Compact panel on the left, under the title sign and above the cat, so it never covers incoming bugs.
-  const L = 16 + view.safe.l, y0 = 92 + view.safe.t, PW = 250, right = L + PW - 12;
+  const L = 16 + view.safe.l / k, y0 = 92 + view.safe.t / k, PW = 250, right = L + PW - 12;
   const px = L + 34, pw = PW - 34 - 12;
   ctx.fillStyle = 'rgba(20,14,8,.42)'; rrect(L, y0, PW, 150, 10); ctx.fill();
   stencil('SKÓRE', L + 12, y0 + 22, 14, '#f3e7cf');
@@ -66,9 +69,9 @@ export function drawHUD() {
   // boss bar
   const boss = S.bugs.find(b => b.type === 'B' && !b.happy);
   if (boss) {
-    const bw = Math.min(420, W * 0.45), bx = W * 0.55 - bw / 2, by = 22 + view.safe.t;
+    const cx = field().cx / k, bw = Math.min(420, W * 0.45), bx = cx - bw / 2, by = 22 + view.safe.t / k;
     ctx.fillStyle = 'rgba(20,14,8,.5)'; rrect(bx - 10, by - 14, bw + 20, 40, 8); ctx.fill();
-    stencil(boss.tag, W * 0.55, by - 2, 14, '#ff6b6b', 'center');
+    stencil(boss.tag, cx, by - 2, 14, '#ff6b6b', 'center');
     ctx.fillStyle = 'rgba(0,0,0,.5)'; rrect(bx, by + 8, bw, 12, 6); ctx.fill();
     ctx.fillStyle = '#ff3b3b'; rrect(bx, by + 8, Math.max(12, bw * boss.hp / boss.maxhp), 12, 6); ctx.fill();
   }
@@ -76,6 +79,7 @@ export function drawHUD() {
   if (S.running && S.paused) {
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, W, H);
   }
+  ctx.restore();
 }
 
 // Tap target for a manual reload: only the ammo crate under the gun (same rectangle render.js draws),

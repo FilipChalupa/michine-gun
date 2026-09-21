@@ -2,7 +2,7 @@
 // Strategy: precache the whole app shell on install, then serve stale-while-revalidate,
 // so the game starts instantly (and offline) while files refresh in the background.
 // Bump VERSION to force a clean cache and show the "new version" notice in the page.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = `misine-gun-${VERSION}`;
 const SHELL = [
   './', './index.html', './style.css', './manifest.webmanifest',

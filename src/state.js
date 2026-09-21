@@ -6,8 +6,14 @@ export const BREAK_LEN = 2.5;
 export const BALANCE = { quotaBase: 6, quotaPerWave: 4, spawnBase: 1.7, spawnPerWave: 0.45, spawnMin: 0.2, speedPerWave: 0.1, bossHpPerRound: 25,
   peacePerCheer: 0.12, peacePerCrit: 1, peacePerBoss: 8, armorEvery: 8, cool: 0.45, coolOverheated: 0.3 }; // armorEvery: every N waves ordinary bugs need one more mouse
 
-// World units: on narrow screens the whole scene is scaled by SC.
-export const view = { W: 0, H: 0, SC: 1, DPR: 1, safe: { l: 0, r: 0, t: 0, b: 0 } };
+// The game is played on a fixed reference field of FIELD.w x FIELD.h world units, so every screen gets the
+// same flight distance, spawn band and timing. The whole scene is scaled by SC to fit the window ("contain"),
+// the field is anchored to the bottom right, and any extra room (wider: left of the cat, taller: more sky)
+// is only scenery. W/H are the visible size in world units (>= the field, except on portrait phones).
+export const FIELD = { w: 1280, h: 720, gunX: 307, gunFromBottom: 202, bandTop: 403, bandBottom: 72, travel: 943 };
+// speedScale < 1 only when the field does not fit (portrait phone): bugs slow down so the time to reach the gun stays the same.
+// hudK: the HUD is drawn larger than the scene on small screens so it stays readable.
+export const view = { W: FIELD.w, H: FIELD.h, SC: 1, DPR: 1, speedScale: 1, hudK: 1, safe: { l: 0, r: 0, t: 0, b: 0 } };
 // touch: true while the last pointer was a finger (barrel tilt follows finger height instead of aiming at it)
 export const pointer = { x: 0, y: 0, down: false, space: false, touch: false, startY: 0, startAngle: 0 };
 export const motion = { reduced: false };
@@ -16,7 +22,13 @@ export const meta = { best: 0 };
 export const rnd = (a, b) => a + Math.random() * (b - a);
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const pick = a => a[Math.floor(Math.random() * a.length)];
-export const gun = () => ({ x: Math.max(view.W * 0.24, 200 + view.safe.l), y: view.H * 0.72 });
+export const gun = () => ({ x: Math.max(view.W - (FIELD.w - FIELD.gunX), 200 + view.safe.l), y: view.H - FIELD.gunFromBottom });
+// Field geometry derived from the gun: origin of the reference field on screen, centre for banners, spawn band.
+export function field() {
+  const g = gun(), ox = g.x - FIELD.gunX, oy = view.H - FIELD.h;
+  return { ox, oy, cx: clamp(ox + FIELD.w * 0.55, 280, Math.max(280, view.W - 280)), cy: oy + FIELD.h * 0.35, top: g.y - FIELD.bandTop, bottom: g.y - FIELD.bandBottom };
+}
+export const bandY = () => { const f = field(); return rnd(f.top, f.bottom); };
 
 export const BUG_TYPES = {
   s: { size: 30, hp: 1, speed: 70, dmg: 10, tags: ['typo', 'NPE', '404', 'off by 1', 'race condition', 'undefined', 'null', 'CSS', 'memory leak', 'merge conflict', 'flaky test', 'jen na produkci', 'u mě to jde', 'timezone', 'encoding', 'infinite loop', 'deadlock', 'stack overflow', 'legacy'] },

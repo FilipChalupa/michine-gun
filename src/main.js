@@ -1,5 +1,5 @@
 // Bootstrap: canvas sizing, input, overlay screens, pause, loop, PWA.
-import { S, view, pointer, motion, meta, newGame, loadPrefs } from './state.js';
+import { S, view, pointer, motion, meta, gun, FIELD, newGame, loadPrefs } from './state.js';
 import { audio, sfx, unlock, setMute, loadMute, setVolume, startAmbient, stopAmbient, startMusic, stopMusic, setMusic, suspend, resume } from './audio.js';
 import { update, hooks, reload, chooseUpgrade } from './entities.js';
 import { initRender, drawScene } from './render.js';
@@ -24,8 +24,11 @@ let overlayMode = 'start';
 function resize() {
   view.DPR = Math.min(window.devicePixelRatio || 1, 2);
   const cw = window.innerWidth, ch = window.innerHeight;
-  view.SC = Math.min(1, Math.max(0.5, cw / 1100));
+  // fit the fixed reference field into the window; never below 0.5 so a portrait phone stays legible
+  view.SC = Math.max(0.5, Math.min(cw / FIELD.w, ch / FIELD.h));
   view.W = cw / view.SC; view.H = ch / view.SC;
+  view.hudK = Math.max(1, 0.8 / view.SC);
+  document.documentElement.style.setProperty('--ui', String(Math.min(2, Math.max(1, view.SC))));
   canvas.width = Math.round(cw * view.DPR); canvas.height = Math.round(ch * view.DPR);
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
   ctx.setTransform(view.DPR * view.SC, 0, 0, view.DPR * view.SC, 0, 0);
@@ -34,6 +37,8 @@ function resize() {
   const cs = getComputedStyle(document.getElementById('safe'));
   const px = v => (parseFloat(v) || 0) / view.SC;
   view.safe = { l: px(cs.paddingLeft), r: px(cs.paddingRight), t: px(cs.paddingTop), b: px(cs.paddingBottom) };
+  // when the field does not fit (portrait), the flight path is shorter, so bugs slow down to keep the same time to the gun
+  view.speedScale = Math.min(1, (view.W + 40 - (gun().x + 70)) / FIELD.travel);
 }
 window.addEventListener('resize', resize);
 resize();
@@ -114,7 +119,7 @@ function unpause() {
 }
 function start() {
   unlock(); startAmbient(); startMusic(); newGame(); overlay.hidden = true; pauseBtn.hidden = false; keepAwake();
-  pointer.x = view.W * 0.7; pointer.y = view.H * 0.4;
+  pointer.x = gun().x + 600; pointer.y = gun().y - 250;
 }
 btn.addEventListener('click', () => { if (overlayMode === 'pause') unpause(); else start(); });
 pauseBtn.addEventListener('click', pause);
@@ -177,7 +182,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (S.running) { S.paused ? unpause() : pause(); } }
 });
 window.addEventListener('keyup', e => { if (e.code === 'Space') pointer.space = false; });
-pointer.x = view.W * 0.7; pointer.y = view.H * 0.4;
+pointer.x = gun().x + 600; pointer.y = gun().y - 250;
 
 // ---------- loop ----------
 let last = performance.now();
