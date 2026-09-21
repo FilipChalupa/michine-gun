@@ -11,10 +11,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mišine gun">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/anton-latin-ext.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,9 +24,13 @@
   <p id="msg">Bugy táhnou na produkci. Zamiř, drž tlačítko a zasyp je roztomilostí. Každý bug zasažený myší se rozveselí, přestane kousat a odletí domů. Když se dostanou až k tobě, ubývá mír. Pozor na přehřátou hlaveň, střílej v dávkách.</p>
   <div id="stats"></div>
   <button id="btn">ZAHÁJIT MÍROVOU MISI</button>
+  <button id="install" hidden>⬇ NAINSTALOVAT HRU</button>
   <p class="hint" id="hint">Myš / dotyk = míření a palba &middot; Mezerník = palba &middot; P = pauza &middot; M = zvuk</p>
+  <p class="hint" id="ioshint" hidden>Na iPhonu: Sdílet → Přidat na plochu, hra pak běží na celou obrazovku i offline.</p>
   <p class="hint" id="rotate" hidden>📱 Na mobilu se hraje nejlíp na šířku.</p>
 </div>
+<div id="toast" role="status" hidden><span id="toastmsg">Je k dispozici nová verze.</span><button id="toastbtn">OBNOVIT</button></div>
+<div id="safe"></div>
 <div id="controls">
   <button class="ctl" id="pause" title="Pauza (P)" hidden>⏸ PAUZA</button>
   <button class="ctl" id="mute" title="Zvuk (M)">🔊 ZVUK</button>

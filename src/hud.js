@@ -4,7 +4,7 @@ import { getCtx, stencil, rrect, heart, drawMouse } from './render.js';
 
 export function drawTitleSign() {
   const ctx = getCtx();
-  const x = 16, y = 14, w = 250, h = 68;
+  const x = 16 + view.safe.l, y = 14 + view.safe.t, w = 250, h = 68;
   ctx.strokeStyle = '#3b3b3b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + 30, 0); ctx.lineTo(x + 30, y); ctx.moveTo(x + w - 30, 0); ctx.lineTo(x + w - 30, y); ctx.stroke();
   ctx.fillStyle = 'rgba(0,0,0,.35)'; rrect(x + 4, y + 6, w, h, 6); ctx.fill();
   ctx.fillStyle = '#5a3d22'; rrect(x, y, w, h, 6); ctx.fill(); ctx.strokeStyle = '#2f1e0d'; ctx.lineWidth = 3; ctx.stroke();
@@ -19,7 +19,8 @@ export function drawTitleSign() {
 
 export function drawHUD() {
   const ctx = getCtx(); const { W, H } = view;
-  const right = W - 16, pw = Math.min(220, W * 0.3), px = right - pw;
+  const right = W - 16 - view.safe.r, pw = Math.min(220, W * 0.3), px = right - pw;
+  ctx.save(); ctx.translate(0, view.safe.t);
   ctx.fillStyle = 'rgba(20,14,8,.42)'; rrect(px - 30, 8, pw + 40, 206, 10); ctx.fill();
   stencil('SKÓRE', right, 26, 14, '#f3e7cf', 'right');
   stencil(String(S.score), right, 52, 34, '#f5c400', 'right');
@@ -51,10 +52,12 @@ export function drawHUD() {
   stencil(S.overheated ? 'PŘEHŘÁTO · chladne' : 'HLAVEŇ', px + pw / 2, hy + 6, 10, S.heat > 0.5 ? '#2b2119' : '#e0d3b3', 'center');
   ctx.fillStyle = hc; ctx.beginPath(); ctx.moveTo(px - 14, hy + 12); ctx.quadraticCurveTo(px - 22, hy + 2, px - 14, hy - 4); ctx.quadraticCurveTo(px - 6, hy + 2, px - 14, hy + 12); ctx.fill();
 
+  ctx.restore();
+
   // boss bar
   const boss = S.bugs.find(b => b.type === 'B' && !b.happy);
   if (boss) {
-    const bw = Math.min(420, W * 0.45), bx = W * 0.55 - bw / 2, by = 22;
+    const bw = Math.min(420, W * 0.45), bx = W * 0.55 - bw / 2, by = 22 + view.safe.t;
     ctx.fillStyle = 'rgba(20,14,8,.5)'; rrect(bx - 10, by - 14, bw + 20, 40, 8); ctx.fill();
     stencil('PROD DOWN', W * 0.55, by - 2, 14, '#ff6b6b', 'center');
     ctx.fillStyle = 'rgba(0,0,0,.5)'; rrect(bx, by + 8, bw, 12, 6); ctx.fill();

@@ -1,17 +1,26 @@
 {
+  "id": "./",
   "name": "Mišine gun",
   "short_name": "Mišine gun",
   "description": "Kočka, kulomet a myši místo nábojů. Rozvesel bugy dřív, než pošlapou mír.",
   "lang": "cs",
-  "start_url": "./",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
   "scope": "./",
   "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "landscape",
   "background_color": "#1a1410",
   "theme_color": "#5a3d22",
+  "categories": ["games", "entertainment"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "screenshots/wide.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "Kočka zasypává bugy myšmi" },
+    { "src": "screenshots/narrow.png", "sizes": "540x960", "type": "image/png", "form_factor": "narrow", "label": "Mišine gun na mobilu" }
   ]
 }

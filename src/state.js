@@ -4,7 +4,7 @@ export const FONT = 'Anton, Impact, "Arial Black", sans-serif';
 export const BREAK_LEN = 4;
 
 // World units: on narrow screens the whole scene is scaled by SC.
-export const view = { W: 0, H: 0, SC: 1, DPR: 1 };
+export const view = { W: 0, H: 0, SC: 1, DPR: 1, safe: { l: 0, r: 0, t: 0, b: 0 } };
 export const pointer = { x: 0, y: 0, down: false, space: false };
 export const motion = { reduced: false };
 export const meta = { best: 0 };
@@ -12,7 +12,7 @@ export const meta = { best: 0 };
 export const rnd = (a, b) => a + Math.random() * (b - a);
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const pick = a => a[Math.floor(Math.random() * a.length)];
-export const gun = () => ({ x: Math.max(view.W * 0.24, 200), y: view.H * 0.72 });
+export const gun = () => ({ x: Math.max(view.W * 0.24, 200 + view.safe.l), y: view.H * 0.72 });
 
 export const BUG_TYPES = {
   s: { size: 30, hp: 1, speed: 70, dmg: 10, tags: ['typo', 'NPE', '404', 'off by 1', 'race condition', 'undefined', 'null', 'CSS', 'memory leak', 'merge conflict', 'flaky test', 'jen na produkci', 'u mě to jde', 'timezone', 'encoding', 'infinite loop', 'deadlock', 'stack overflow', 'legacy'] },

@@ -28,6 +28,10 @@ function resize() {
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
   ctx.setTransform(view.DPR * view.SC, 0, 0, view.DPR * view.SC, 0, 0);
   rotateEl.hidden = !(ch > cw && cw < 700);
+  // safe-area insets (notch, rounded corners) converted to world units
+  const cs = getComputedStyle(document.getElementById('safe'));
+  const px = v => (parseFloat(v) || 0) / view.SC;
+  view.safe = { l: px(cs.paddingLeft), r: px(cs.paddingRight), t: px(cs.paddingTop), b: px(cs.paddingBottom) };
 }
 window.addEventListener('resize', resize);
 resize();
@@ -39,6 +43,14 @@ motion.reduced = rm.matches; rm.addEventListener('change', e => { motion.reduced
 function refreshMute() { muteBtn.textContent = audio.muted ? '🔇 TICHO' : '🔊 ZVUK'; }
 refreshMute();
 muteBtn.addEventListener('click', () => { setMute(!audio.muted); refreshMute(); });
+
+// ---------- screen wake lock (keeps the phone awake while playing) ----------
+let wakeLock = null;
+async function keepAwake() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch (e) {}
+}
+function releaseWake() { if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; } }
 
 // ---------- overlay / pause ----------
 function showOverlay(mode) {
@@ -61,18 +73,18 @@ function showOverlay(mode) {
 }
 function pause() {
   if (!S.running || S.paused) return;
-  S.paused = true; pointer.down = false; pointer.space = false; suspend(); showOverlay('pause');
+  releaseWake(); S.paused = true; pointer.down = false; pointer.space = false; suspend(); showOverlay('pause');
 }
 function unpause() {
-  S.paused = false; overlay.hidden = true; pauseBtn.hidden = false; resume();
+  S.paused = false; overlay.hidden = true; pauseBtn.hidden = false; resume(); keepAwake();
 }
 function start() {
-  unlock(); startAmbient(); newGame(); overlay.hidden = true; pauseBtn.hidden = false;
+  unlock(); startAmbient(); newGame(); overlay.hidden = true; pauseBtn.hidden = false; keepAwake();
   pointer.x = view.W * 0.7; pointer.y = view.H * 0.4;
 }
 btn.addEventListener('click', () => { if (overlayMode === 'pause') unpause(); else start(); });
 pauseBtn.addEventListener('click', pause);
-hooks.onGameOver = () => { stopAmbient(); showOverlay('over'); };
+hooks.onGameOver = () => { stopAmbient(); releaseWake(); showOverlay('over'); };
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 window.addEventListener('blur', () => { pointer.down = false; pointer.space = false; pause(); });
 
@@ -106,7 +118,53 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-// ---------- PWA ----------
+// ---------- PWA: install prompt, offline cache, update notice ----------
+const installBtn = document.getElementById('install');
+const iosHint = document.getElementById('ioshint');
+const toast = document.getElementById('toast');
+const toastMsg = document.getElementById('toastmsg');
+const toastBtn = document.getElementById('toastbtn');
+const standalone = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone === true;
+
+let installEvent = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvent = e; installBtn.hidden = false; });
+installBtn.addEventListener('click', async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  try { await installEvent.userChoice; } catch (e) {}
+  installEvent = null; installBtn.hidden = true;
+});
+window.addEventListener('appinstalled', () => { installBtn.hidden = true; iosHint.hidden = true; });
+// iOS Safari has no install prompt; explain the manual way once.
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+if (isIOS && !standalone) iosHint.hidden = false;
+
+function showToast(text, action, onClick) {
+  toastMsg.textContent = text; toastBtn.textContent = action; toastBtn.hidden = !action;
+  toastBtn.onclick = onClick || null; toast.hidden = false;
+}
 if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      const offerUpdate = worker => {
+        if (!navigator.serviceWorker.controller) return; // first install, nothing to update
+        showToast('Je k dispozici nová verze.', 'OBNOVIT', () => worker.postMessage('SKIP_WAITING'));
+      };
+      if (reg.waiting) offerUpdate(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing; if (!w) return;
+        w.addEventListener('statechange', () => {
+          if (w.state === 'installed') {
+            if (navigator.serviceWorker.controller) offerUpdate(w);
+            else { showToast('Hra je připravená i offline.', '', null); setTimeout(() => { toast.hidden = true; }, 3500); }
+          }
+        });
+      });
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded || !toastBtn.onclick) return; reloaded = true; location.reload();
+      });
+    } catch (e) {}
+  });
 }

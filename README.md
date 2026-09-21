@@ -13,7 +13,18 @@ python3 -m http.server 8080
 # http://localhost:8080
 ```
 
-Hra je PWA: na mobilu jde přidat na plochu a běží na celou obrazovku, po první návštěvě funguje i offline (`sw.js`).
+## PWA
+
+Hra je plnohodnotná PWA (vyžaduje HTTPS nebo `localhost`):
+
+- **Instalace:** na startovní obrazovce se v Chrome a Edge objeví tlačítko „Nainstalovat hru“. Na iPhonu se instaluje přes Sdílet → Přidat na plochu (hra na to upozorní). Po instalaci běží na celou obrazovku na šířku.
+- **Offline:** `sw.js` při první návštěvě uloží celou hru včetně fontu a ikon, pak ji servíruje z cache a na pozadí ji obnovuje (stale-while-revalidate). Hláška „Hra je připravená i offline“ potvrdí, že je uloženo.
+- **Aktualizace:** při změně `sw.js` (zvyš `VERSION`) se hráči ukáže lišta „Je k dispozici nová verze“ s tlačítkem Obnovit. Stará cache se smaže.
+- **Manifest:** `manifest.webmanifest` s ikonami 192 a 512 px (běžné i maskable) a screenshoty pro instalační dialog. Navíc `favicon-32.png` a `apple-touch-icon.png`.
+- **Font:** Anton (SIL OFL 1.1, `fonts/OFL.txt`) je hostovaný lokálně, žádné požadavky na cizí servery.
+- **Telefon:** obrazovka během hry nezhasne (Screen Wake Lock) a HUD respektuje výřez a zaoblené rohy (`safe-area-inset`).
+
+Při přidání nového souboru ho doplň do seznamu `SHELL` v `sw.js`.
 
 ## Ovládání
 
@@ -52,6 +63,6 @@ Hra je PWA: na mobilu jde přidat na plochu a běží na celou obrazovku, po prv
 - `src/render.js` – kreslení scény, kočky, kulometu, myší a bugů
 - `src/hud.js` – HUD a cedule s názvem
 - `src/audio.js` – syntetizované zvuky a ambient (WebAudio, bez souborů)
-- `manifest.webmanifest`, `sw.js`, `icons/` – PWA
+- `manifest.webmanifest`, `sw.js`, `icons/`, `screenshots/`, `fonts/` – PWA, ikony, screenshoty pro instalaci, lokální font
 
 Respektuje `prefers-reduced-motion` (vypne otřesy obrazovky a zpomalení času při zásahu).
